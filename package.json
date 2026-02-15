@@ -10,7 +10,8 @@
     "build": "turbo run build", 
     "build:api": "turbo run build --filter=api", 
     "sync-ip": "node scripts/update-ip.js",
-    "start:api": "node apps/api/dist/main.js"
+    "start:api": "node apps/api/dist/main.js",
+    "postinstall": "prisma generate --schema=apps/api/prisma/schema.prisma"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
@@ -28,5 +29,8 @@
   },
   "dependencies": {
     "cross-env": "^7.0.3" 
-  }
+  },
+  "prisma": {
+  "schema": "apps/api/prisma/schema.prisma"
+}
 }
