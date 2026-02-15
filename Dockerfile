@@ -21,13 +21,13 @@ COPY packages/ ./packages/
 COPY apps/api/prisma ./apps/api/prisma
 
 # 4. Install dependencies (scripts ignored)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 5. Copy the rest of the source code
 COPY . .
 
 # 6. Manual Generate - Using a relative path that we just verified
-RUN npx prisma generate --schema=./apps/api/prisma/schema.prisma
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 
 # 7. Build
 RUN pnpm run build:api
