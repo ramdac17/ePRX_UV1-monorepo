@@ -95,6 +95,7 @@
     "testEnvironment": "node"
   },
   "prisma": {
-    "seed": "node --loader ts-node/esm prisma/seed.ts"
+    "seed": "node --loader ts-node/esm prisma/seed.ts",
+    "schema": "prisma/schema.prisma"
   }
 }
