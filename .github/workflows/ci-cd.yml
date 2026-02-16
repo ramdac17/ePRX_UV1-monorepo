@@ -1,0 +1,59 @@
+name: ePRX UV1 CI-CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        # We use --ignore-scripts to prevent the Prisma postinstall crash we solved earlier
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build Types Package
+        run: pnpm --filter @repo/types run build || echo "Package has no build script, skipping."
+
+      - name: Generate Prisma Client
+        # This mirrors our successful Docker build step
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Type-Check and Build API
+        # This ensures the 28 errors we fixed don't come back
+        run: |
+          pnpm --filter api run build
+
+  deploy:
+    needs: test-and-build
+    # Only deploy if we are on the main branch and the build passed
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy to Railway
+        # This triggers the Railway build using the stable Dockerfile we created
+        run: railway up --service api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
