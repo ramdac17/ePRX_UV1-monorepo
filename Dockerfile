@@ -35,4 +35,4 @@ RUN pnpm --filter api run build
 EXPOSE 3000
 
 # Using a robust start command for monorepos
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/apps/api/prisma/schema.prisma && node /app/apps/api/dist/main.js"]
