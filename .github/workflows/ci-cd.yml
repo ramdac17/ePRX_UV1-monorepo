@@ -28,6 +28,9 @@ jobs:
         # We use --ignore-scripts to prevent the Prisma postinstall crash we solved earlier
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Run Linting
+        run: pnpm --filter api run lint     
+
       - name: Build Types Package
         run: pnpm --filter @repo/types run build || echo "Package has no build script, skipping."
 
@@ -46,8 +49,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Run Linting
-        run: pnpm --filter api run lint
+     
 
       - name: Checkout Code
         uses: actions/checkout@v4
