@@ -35,4 +35,4 @@ RUN pnpm run build:api
 EXPOSE 3000
 
 # Using a robust start command for monorepos
-CMD ["pnpm", "--filter", "api", "run", "start"]
+CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then echo 'DATABASE_URL IS MISSING'; exit 1; fi; npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
