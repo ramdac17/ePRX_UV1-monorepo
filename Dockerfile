@@ -26,19 +26,18 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 # 5. Copy the rest of the source code
 COPY . .
 
-# 6. Generate - explicitly in the app folder
+# 6. Generate - explicitly in the context of the api folder
 RUN cd apps/api && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
 
-# 7. Build
+# 7. Build the NestJS app
 RUN pnpm --filter api run build
 
-# 8. THE FIX: Symlink for the runtime environment
-RUN ln -s /app/apps/api/node_modules/.bin/prisma /usr/local/bin/prisma
-
+# 8. Expose the port
 EXPOSE 3000
 
-# 9. RUNTIME: Switch to the api directory so paths are local
+# 9. THE FINAL MOVES: 
+# Move into the api directory so the 'prisma' command finds the schema at 'prisma/schema.prisma'
 WORKDIR /app/apps/api
 
-# Now paths are relative to /app/apps/api
-CMD ["sh", "-c", "prisma migrate deploy --schema=./prisma/schema.prisma && node ./dist/main.js"]
+# Run migrations using the binary we confirmed is in dependencies, then start the server
+CMD ["sh", "-c", "../../node_modules/.bin/prisma migrate deploy && node dist/main.js"]
