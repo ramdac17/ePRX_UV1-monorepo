@@ -9,44 +9,45 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
         with:
           version: 9.0.0
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.12.0
           cache: 'pnpm'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build Types Package
-        run: pnpm --filter @repo/types run build || echo "Package has no build script, skipping."
+        run: pnpm --filter @repo/types run build
 
       - name: Generate Prisma Client
-        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+        run: DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate --schema=apps/api/prisma/schema.prisma
 
       - name: Run Linting
-        # Moved here so it has access to generated Prisma types
         run: pnpm --filter api run lint     
 
-      - name: Type-Check and Build API
+      - name: Build API
         run: pnpm --filter api run build
 
   deploy:
     needs: test-and-build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
 
       - name: Install Railway CLI
         run: npm i -g @railway/cli
