@@ -31,9 +31,10 @@ RUN cd apps/api && DATABASE_URL="postgresql://unused:unused@localhost:5432/unuse
 
 # 7. Build the API
 RUN pnpm --filter api run build
+RUN ln -s /app/apps/api/node_modules/.bin/prisma /usr/local/bin/prisma
 
 EXPOSE 3000
 
 # THE FIX: Pointing to the exact location of the prisma binary 
 # and using the absolute path to the schema.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
