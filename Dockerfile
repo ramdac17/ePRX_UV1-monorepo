@@ -27,12 +27,12 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 
 # 6. Manual Generate - Using a relative path that we just verified
-RUN npx prisma generate --schema=apps/api/prisma/schema.prisma --no-engine-config
+RUN cd apps/api && DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" npx prisma generate
 
 # 7. Build
-RUN pnpm run build:api
+RUN pnpm --filter api run build
 
 EXPOSE 3000
 
 # Using a robust start command for monorepos
-CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then echo 'DATABASE_URL IS MISSING'; exit 1; fi; npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma && node apps/api/dist/main.js"]
