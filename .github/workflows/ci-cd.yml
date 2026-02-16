@@ -20,7 +20,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        
+        # Version is omitted to automatically sync with package.json "packageManager"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -28,14 +29,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Dependencies
-        # Using --ignore-scripts here prevents potential recursive prisma/postinstall issues
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build Shared Types
         run: pnpm --filter @repo/types build
 
       - name: Generate Prisma Client
-        # The env var is picked up from the job-level 'env' block
         run: pnpm prisma generate --schema=apps/api/prisma/schema.prisma
 
       - name: Run Unit Tests
@@ -64,7 +63,6 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        # Using the unique Service ID for the ePRX UV1 API
         run: railway up --service 7b91e00c-a6f6-41c8-94f4-e5927a4bab25 --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
