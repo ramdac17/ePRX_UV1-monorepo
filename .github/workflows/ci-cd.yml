@@ -10,14 +10,20 @@ jobs:
   test-and-build:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
+    env:
+      NODE_ENV: test
 
-      - uses: pnpm/action-setup@v4
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 10.28.2
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
           cache: 'pnpm'
@@ -25,19 +31,22 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Types Package
-        run: pnpm --filter @repo/types run build
+      - name: Build Shared Types
+        run: pnpm --filter @repo/types build
 
       - name: Generate Prisma Client
         run: |
           DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" \
           pnpm prisma generate --schema=apps/api/prisma/schema.prisma
 
-      - name: Run Linting
-        run: pnpm --filter api run lint     
+      - name: Run Unit Tests
+        run: pnpm --filter api test -- --ci --runInBand
+
+      - name: Run Lint
+        run: pnpm --filter api lint
 
       - name: Build API
-        run: pnpm --filter api run build
+        run: pnpm --filter api build
 
   deploy:
     needs: test-and-build
@@ -45,14 +54,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
 
       - name: Install Railway CLI
-        run: npm i -g @railway/cli
+        run: npm install -g @railway/cli
 
       - name: Deploy to Railway
         run: railway up --service 7b91e00c-a6f6-41c8-94f4-e5927a4bab25 --detach
