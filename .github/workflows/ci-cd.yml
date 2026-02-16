@@ -9,9 +9,10 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-
     env:
       NODE_ENV: test
+      # Prisma V7 safety: Mock URL to prevent 'Missing env var' errors during build
+      DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
 
     steps:
       - name: Checkout Repository
@@ -20,7 +21,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.28.2
+          version: 10.2.0 # Fixed to a stable v10 release
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,15 +30,15 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        # Using --ignore-scripts here prevents potential recursive prisma/postinstall issues
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build Shared Types
         run: pnpm --filter @repo/types build
 
       - name: Generate Prisma Client
-        run: |
-          DATABASE_URL="postgresql://unused:unused@localhost:5432/unused" \
-          pnpm prisma generate --schema=apps/api/prisma/schema.prisma
+        # The env var is picked up from the job-level 'env' block
+        run: pnpm prisma generate --schema=apps/api/prisma/schema.prisma
 
       - name: Run Unit Tests
         run: pnpm --filter api test -- --ci --runInBand
@@ -52,7 +53,6 @@ jobs:
     needs: test-and-build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -66,6 +66,7 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
+        # Using the unique Service ID for the ePRX UV1 API
         run: railway up --service 7b91e00c-a6f6-41c8-94f4-e5927a4bab25 --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
