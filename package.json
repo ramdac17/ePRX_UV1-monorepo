@@ -1,5 +1,5 @@
 {
-  "name": "ePRX_UV1-monorepo",
+  "name": "eprx-uv1-monorepo",
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "engines": {
