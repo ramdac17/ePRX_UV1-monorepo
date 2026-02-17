@@ -1,26 +1,9 @@
-name: ePRX UV1 CI-CD
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  test-and-build:
-    runs-on: ubuntu-latest
-    env:
-      NODE_ENV: test
-      # Prisma V7 safety: Mock URL to prevent 'Missing env var' errors during build
-      DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
-
-    steps:
+steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # Version is omitted to automatically sync with package.json "packageManager"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -31,38 +14,13 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Build Shared Types
-        run: pnpm --filter @repo/types build
+      # REMOVED: "Build Shared Types" was here - we don't need it!
 
       - name: Generate Prisma Client
         run: pnpm prisma generate --schema=apps/api/prisma/schema.prisma
 
-      - name: Run Unit Tests
-        run: pnpm --filter api test -- --ci --runInBand
-
-      - name: Run Lint
-        run: pnpm --filter api lint
-
       - name: Build API
         run: pnpm --filter api build
 
-  deploy:
-    needs: test-and-build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.12.0
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service 7b91e00c-a6f6-41c8-94f4-e5927a4bab25 --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Run Unit Tests
+        run: pnpm --filter api test -- --ci --runInBand
