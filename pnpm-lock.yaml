@@ -128,19 +128,19 @@ importers:
         specifier: ^6.0.2
         version: 6.0.3
       '@typescript-eslint/eslint-plugin':
-        specifier: ^8.56.0
+        specifier: ^8.0.0
         version: 8.56.0(@typescript-eslint/parser@8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.2))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.2)
       '@typescript-eslint/parser':
-        specifier: ^8.56.0
+        specifier: ^8.0.0
         version: 8.56.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.2)
       eslint:
-        specifier: ^9.39.2
+        specifier: ^9.0.0
         version: 9.39.2(jiti@2.6.1)
       eslint-config-prettier:
-        specifier: ^10.1.8
+        specifier: ^10.0.0
         version: 10.1.8(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-prettier:
-        specifier: ^5.5.5
+        specifier: ^5.0.0
         version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1)
       jest:
         specifier: ^29.7.0
@@ -9428,8 +9428,8 @@ snapshots:
 
   '@typescript-eslint/project-service@8.55.0(typescript@5.9.2)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.55.0(typescript@5.9.2)
-      '@typescript-eslint/types': 8.55.0
+      '@typescript-eslint/tsconfig-utils': 8.56.0(typescript@5.9.2)
+      '@typescript-eslint/types': 8.56.0
       debug: 4.4.3
       typescript: 5.9.2
     transitivePeerDependencies:
