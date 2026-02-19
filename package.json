@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "node scripts/update-ip.js && turbo run dev",
     "build": "nest build --path ./tsconfig.json",
-    "build:api": "turbo run build --filter=api", 
+    "build:api": "turbo run build --filter=api",
     "sync-ip": "node scripts/update-ip.js",
     "start:api": "node apps/api/dist/main.js",
     "postinstall": "pnpm --filter api exec prisma generate --schema=./prisma/schema.prisma"
@@ -28,9 +28,11 @@
     }
   },
   "dependencies": {
-    "cross-env": "^7.0.3" 
+    "@prisma/client": "^7.3.0",
+    "cross-env": "^7.0.3",
+    "prisma": "^7.3.0"
   },
   "prisma": {
-  "schema": "apps/api/prisma/schema.prisma"
-}
+    "schema": "apps/api/prisma/schema.prisma"
+  }
 }
