@@ -35,7 +35,7 @@ jobs:
         run: pnpm prisma generate --schema=apps/api/prisma/schema.prisma
 
       - name: Run Unit Tests
-        run: pnpm --filter api test -- --ci --runInBand --passWithNoTests
+        run: pnpm --filter api test
 
       - name: Run Lint
         run: pnpm --filter api lint
