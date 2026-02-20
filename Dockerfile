@@ -15,10 +15,11 @@ ENV pnpm_config_ignore_scripts=true
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/ ./packages/
+COPY apps/api/prisma ./prisma
 
 # 3. CRITICAL: Physically copy the Prisma folder specifically 
 # This ensures Docker "sees" the file before we install anything
-COPY apps/api/prisma ./apps/api/prisma
+# COPY apps/api/prisma ./apps/api/prisma
 
 # 4. Install dependencies (scripts ignored)
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -39,8 +40,8 @@ RUN pnpm --filter api run build
 EXPOSE 3000
 
 # 9. RUNTIME
-WORKDIR /app
+WORKDIR /app/apps/api
 RUN ls -R
 
 # Add this line to start your NestJS app
-CMD ["node", "dist/apps/api/main.js"]
+CMD ["/bin/sh", "-c", "npx prisma migrate deploy --schema=./prisma/schema.prisma && node dist/main.js"]
