@@ -16,9 +16,11 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter api run build
+RUN ls -R apps/api/prisma
 
 WORKDIR /app/apps/api
 
 EXPOSE 3000
 
-CMD ["/bin/sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
+CMD ["node", "dist/main.js"]
+
