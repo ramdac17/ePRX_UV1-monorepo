@@ -29,7 +29,7 @@ EXPOSE 3000
 
 # ===== Runtime command =====
 CMD cd apps/api && \
-    echo "Starting API..." && \
+    echo "Starting API............." && \
     pnpm exec prisma migrate deploy && \
-    echo "Running Nest..." && \
+    echo "Running Nest............." && \
     node dist/apps/api/src/main.js
