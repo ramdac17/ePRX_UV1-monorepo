@@ -13,7 +13,7 @@ WORKDIR /app
 # ===== Copy monorepo files =====
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api ./apps/api
-COPY packages ./packages
+# COPY packages ./packages
 
 # ===== Install dependencies =====
 RUN pnpm install --frozen-lockfile
