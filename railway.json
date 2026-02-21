@@ -10,7 +10,7 @@
   "deploy": {
     "runtime": "V2",
     "numReplicas": 1,
-    "startCommand": "cd apps/api && npx prisma migrate deploy && cd ../.. && node dist/apps/api/main.js",
+    "startCommand": "npx prisma migrate deploy && node dist/apps/api/main.js",
     "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
