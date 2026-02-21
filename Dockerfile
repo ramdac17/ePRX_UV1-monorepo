@@ -36,3 +36,8 @@ EXPOSE 3000
 # ===== Runtime command =====
 # We use the explicit path to the built main.js discovered earlier
 # CMD ["/bin/sh", "-c", "pnpm --filter api exec prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node dist/apps/api/main.js"]
+CMD cd apps/api && \
+    echo "Starting API..." && \
+    pnpm exec prisma migrate deploy && \
+    echo "Running Nest..." && \
+    node dist/main.js
