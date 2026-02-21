@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter api exec prisma generate -- --schema=./apps/api/prisma/schema.prisma \
     && pnpm --filter api run build --filter api
 
-WORKDIR /app/apps/api
+WORKDIR /apps/api
 
 EXPOSE 3000
 
