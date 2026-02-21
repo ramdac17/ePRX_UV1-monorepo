@@ -11,21 +11,28 @@ RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
 # ===== Copy monorepo files =====
+# We copy the workspace config first to leverage Docker layer caching
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+
+# CRITICAL: We MUST copy packages/ because apps/api depends on @repo/types
+COPY packages ./packages
 COPY apps/api ./apps/api
-# COPY packages ./packages
 
 # ===== Install dependencies =====
 RUN pnpm install --frozen-lockfile
 
-# ===== Generate Prisma client & build API =====
-RUN pnpm --filter api exec prisma generate && pnpm --filter api run build
+# ===== Generate Prisma client & Build API =====
+# 'api...' builds the api AND all its local workspace dependencies in order
+RUN pnpm --filter api exec prisma generate
+RUN pnpm --filter api... build
 
 # ===== Set working directory for runtime =====
-WORKDIR /app/apps/api
+# Keeping this as /app so paths to dist/apps/api are predictable
+WORKDIR /app
 
 # ===== Expose port =====
 EXPOSE 3000
 
 # ===== Runtime command =====
-CMD ["/bin/sh", "-c", "pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && node dist/main.js"]
+# We use the explicit path to the built main.js discovered earlier
+CMD ["/bin/sh", "-c", "pnpm --filter api exec prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node dist/apps/api/main.js"]
