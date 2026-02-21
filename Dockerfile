@@ -19,8 +19,7 @@ COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 
 # ===== Generate Prisma client & build API =====
-RUN pnpm --filter api exec prisma generate -- --schema=./apps/api/prisma/schema.prisma \
-    && pnpm --filter api run build --filter api
+RUN pnpm --filter api exec prisma generate && pnpm --filter api run build
 
 # ===== Set working directory for runtime =====
 WORKDIR /app/apps/api
