@@ -1,7 +1,7 @@
 name: Build Android APK
 on:
   push:
-    branches: [main] # Or master, depending on your backup repo branch // test
+    branches: [main] 
 
 jobs:
   build:
@@ -10,16 +10,19 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      # 1. Install PNPM first so the 'pnpm' command is available
+      - name: 🏗 Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+
+      # 2. Now setup Node and point it to the PNPM cache
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
-
-      - name: 🏗 Setup PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
 
       - name: 🏗 Install dependencies
         run: pnpm install
