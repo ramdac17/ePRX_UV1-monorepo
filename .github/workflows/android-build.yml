@@ -1,7 +1,7 @@
 name: Build Android APK
 on:
   push:
-    branches: [main] # Or master, depending on your backup repo branch
+    branches: [main] # Or master, depending on your backup repo branch // test
 
 jobs:
   build:
