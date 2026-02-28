@@ -6,6 +6,13 @@ const monorepoRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
+config.transformer.getTransformOptions = async () => ({
+  transform: {
+    experimentalImportSupport: false,
+    inlineRequires: true,
+  },
+});
+
 // Instead of just an array, we tell Metro explicitly about the roots
 config.watchFolders = [monorepoRoot];
 config.resolver.nodeModulesPaths = [
