@@ -10,14 +10,13 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // 🛰️ DYNAMIC CORS CONFIGURATION
-  // Pulls from Railway Service Variables, or defaults to a wide list for dev
   const envOrigins = process.env.ALLOWED_ORIGINS;
   const origins = envOrigins
     ? envOrigins.split(',')
     : [
         'http://localhost:3000',
         'http://localhost:5173',
-        'http://localhost:8081', // Expo Metro Bundler
+        'http://localhost:8081',
         /\.railway\.app$/,
       ];
 
@@ -27,18 +26,27 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // 📦 MIDDLEWARE: Payload limits for image uploads
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 
-  // 📂 STATIC ASSETS: Mission Documentation & Profile Images
+  /**
+   * 📂 STATIC ASSETS FIX:
+   * Remove the trailing slash from the prefix.
+   * Path-to-regexp v8 is very sensitive about trailing characters
+   * when combined with global prefixes.
+   */
   const uploadPath = join(process.cwd(), 'uploads');
   app.useStaticAssets(uploadPath, {
-    prefix: '/uploads/',
+    prefix: '/uploads', // Changed from '/uploads/' to '/uploads'
   });
 
-  // 🛠️ GLOBAL CONFIG: Routing & Validation
+  /**
+   * 🛠️ GLOBAL CONFIG FIX:
+   * Ensure the prefix is a simple string.
+   * Do NOT use wildcards here.
+   */
   app.setGlobalPrefix('api');
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -47,13 +55,11 @@ async function bootstrap() {
     }),
   );
 
-  // 🚀 SERVER INITIALIZATION
   const port = process.env.PORT || 3000;
-  // Binding to 0.0.0.0 is critical for Railway/Cloud connectivity
+  // Binding to 0.0.0.0 is critical for Railway
   await app.listen(port, '0.0.0.0');
 
   logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
-  logger.log(`📂 Static Assets Mounted: /uploads/`);
-  logger.log(`🛡️  CORS Active for: ${origins}`);
+  logger.log(`📂 Static Assets Mounted: /uploads`);
 }
 bootstrap();
