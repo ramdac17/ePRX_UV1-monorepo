@@ -5,13 +5,23 @@ import type { CreateFeedbackDto } from '@repo/types';
 
 @Controller('status')
 export class AppController {
-  constructor(private readonly appService: AppService,
-    private readonly prismaService: PrismaService
-  ) { }
-  
+  constructor(
+    private readonly appService: AppService,
+    private readonly prismaService: PrismaService,
+  ) {}
+
+  @Get('health')
+  getHealth() {
+    return { status: 'ok', uptime: process.uptime() };
+  }
+
   @Get()
   getStatus() {
-    return { data: { version: '1.0.0' }, message: 'API is online', statusCode: 200 };
+    return {
+      data: { version: '1.0.0' },
+      message: 'API is online',
+      statusCode: 200,
+    };
   }
 
   @Post('feedback')
@@ -25,9 +35,9 @@ export class AppController {
     });
 
     return {
-      message: "Saved!",
+      message: 'Saved!',
       id: result.id,
-      statusCode: 201
-    }
+      statusCode: 201,
+    };
   }
 }
