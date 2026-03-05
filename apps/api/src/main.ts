@@ -56,27 +56,29 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT || 3000; // Binding to 0.0.0.0 is critical for Railway
-
-  await app.listen(port, '0.0.0.0'); // Use 0.0.0.0 for external access
-
-  logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
-  logger.log(`📂 Static Assets Mounted: /uploads`);
-
   // 1. Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('ePRX UV1 - CORE API')
-    .setDescription(
-      'Tactical interface for identity management and security protocols',
-    )
+    .setDescription('The official API documentation for ePRX UV1')
     .setVersion('1.0')
-    .addBearerAuth() // Allows you to enter your JWT in the UI
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
 
   // 2. Setup Swagger path at /api
-  SwaggerModule.setup('docs', app, document);
+  // 2. Setup Swagger
+  // We'll use 'swagger' as the path.
+  // NOTE: If you want it TOTALLY outside the /api prefix (at the root),
+  // this is the correct way.
+  SwaggerModule.setup('swagger', app, document);
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
+
+  // Add these logs so you can see the EXACT URLs in Railway logs
+  logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
+  logger.log(`📑 API Documentation: http://0.0.0.0:${port}/swagger`);
 }
 
 bootstrap();
