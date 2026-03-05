@@ -76,7 +76,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   // 2. Setup Swagger path at /api
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 }
 
 bootstrap();
