@@ -18,7 +18,15 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import 'multer';
+import {
+  ApiBody,
+  ApiResponse,
+  ApiTags,
+  ApiBearerAuth,
+  ApiConsumes,
+} from '@nestjs/swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger('EPRX_AUTH_CONTROLLER');
@@ -27,6 +35,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'JWT_ISSUE_SUCCESS' })
   async login(@Body() loginDto: any) {
     this.logger.log(`--- [ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email} ---`);
     try {
@@ -40,12 +49,12 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiResponse({ status: 201, description: 'REG_OTP_SENT_TO_EMAIL' })
   async register(@Body() registerDto: any) {
     this.logger.log(
       `--- [ePRX_UV1] REGISTRATION_ATTEMPT: ${registerDto.email} ---`,
     );
     try {
-      // Logic: This now generates OTP and sets 60s expiry in DB
       const result = await this.authService.register(registerDto);
       this.logger.log(
         `--- [ePRX_UV1] REG_OTP_ISSUED: ${registerDto.email} ---`,
@@ -57,12 +66,9 @@ export class AuthController {
     }
   }
 
-  /**
-   * 🟢 NEW ENDPOINT: verify-otp
-   * Matches the mobile app call: api.post("/auth/verify-otp", { email, otp })
-   */
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'OTP_VERIFIED_IDENTITY_CONFIRMED' })
   async verifyOtp(@Body() body: { email: string; otp: string }) {
     this.logger.log(`--- [ePRX_UV1] VERIFICATION_ATTEMPT: ${body.email} ---`);
     try {
@@ -77,6 +83,7 @@ export class AuthController {
     }
   }
 
+  @ApiBearerAuth() // 🛡️ Adds the lock icon in Swagger
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req: any) {
@@ -85,6 +92,14 @@ export class AuthController {
   }
 
   @Post('upload-avatar')
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data') // 📂 Tells Swagger this is a file upload
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -99,9 +114,7 @@ export class AuthController {
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
           return cb(
-            new BadRequestException(
-              'Only image files (jpg, jpeg, png) are allowed!',
-            ),
+            new BadRequestException('Only image files are allowed!'),
             false,
           );
         }
@@ -110,22 +123,13 @@ export class AuthController {
     }),
   )
   async uploadAvatar(@UploadedFile() file: any, @Request() req: any) {
-    if (!file) {
-      throw new BadRequestException('No file provided or invalid file type.');
-    }
-
+    if (!file) throw new BadRequestException('No file provided.');
     const filePath = `/uploads/avatars/${file.filename}`;
     const userId = req.user.id || req.user.sub;
-
     try {
       await this.authService.updateUserImage(userId, filePath);
-      return {
-        success: true,
-        message: 'IDENTITY_IMAGE_SYNCED',
-        url: filePath,
-      };
+      return { success: true, url: filePath };
     } catch (error) {
-      this.logger.error('--- [ePRX_UV1] DB_UPDATE_FAILED ---', error);
       throw new BadRequestException('Failed to update user profile image.');
     }
   }
