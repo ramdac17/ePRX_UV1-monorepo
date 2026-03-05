@@ -1,21 +1,18 @@
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail } from 'class-validator';
 
-export class UpdateUserProfileDto {
-  @ApiProperty({
-    example: 'John Doe',
-    description: 'The full name of the operative',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  name?: string;
+export class RegisterDto {
+  @ApiProperty({ example: 'operative@eprx.com' })
+  @IsEmail({}, { message: 'INVALID_EMAIL_FORMAT' })
+  email!: string;
 
-  @ApiProperty({
-    example: 'operator_01.png',
-    description: 'Filename of the uploaded avatar',
-  })
+  @ApiProperty({ example: 'password123' })
   @IsString()
-  @IsOptional()
-  avatarUrl?: string;
+  @MinLength(6, { message: 'PASSWORD_TOO_SHORT_MIN_6' })
+  password!: string;
+
+  @ApiProperty({ example: 'ZeroOne' })
+  @IsString()
+  @IsNotEmpty({ message: 'USERNAME_REQUIRED' })
+  username!: string;
 }

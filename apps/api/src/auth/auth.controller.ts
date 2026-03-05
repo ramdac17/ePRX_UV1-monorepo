@@ -26,6 +26,11 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 
+// Fixed Imports: Added .js extensions to match your bootstrap style
+import { RegisterDto } from '../dto/register.dto.js';
+import { LoginDto } from '../dto/login.dto.js';
+import { ResetPasswordDto } from '../dto/reset-password.dto.js';
+
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
@@ -36,7 +41,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'JWT_ISSUE_SUCCESS' })
-  async login(@Body() loginDto: any) {
+  async login(@Body() loginDto: LoginDto) {
+    // Fixed: Changed from 'any'
     this.logger.log(`--- [ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email} ---`);
     try {
       const result = await this.authService.login(loginDto);
@@ -50,7 +56,8 @@ export class AuthController {
 
   @Post('register')
   @ApiResponse({ status: 201, description: 'REG_OTP_SENT_TO_EMAIL' })
-  async register(@Body() registerDto: any) {
+  async register(@Body() registerDto: RegisterDto) {
+    // Fixed: Changed from 'any'
     this.logger.log(
       `--- [ePRX_UV1] REGISTRATION_ATTEMPT: ${registerDto.email} ---`,
     );
@@ -83,7 +90,7 @@ export class AuthController {
     }
   }
 
-  @ApiBearerAuth() // 🛡️ Adds the lock icon in Swagger
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req: any) {
@@ -93,7 +100,7 @@ export class AuthController {
 
   @Post('upload-avatar')
   @ApiBearerAuth()
-  @ApiConsumes('multipart/form-data') // 📂 Tells Swagger this is a file upload
+  @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
@@ -114,7 +121,7 @@ export class AuthController {
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
           return cb(
-            new BadRequestException('Only image files are allowed!'),
+            new BadRequestException('Only image files allowed!'),
             false,
           );
         }
@@ -136,13 +143,35 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'RESET_OTP_SENT' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { email: { type: 'string', example: 'operative@eprx.com' } },
+    },
+  })
   async forgotPassword(@Body('email') email: string) {
+    this.logger.log(`--- [ePRX_UV1] FORGOT_PASSWORD_REQUEST: ${email} ---`);
     return this.authService.requestPasswordReset(email);
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetDto: any) {
-    return this.authService.resetPassword(resetDto);
+  @ApiResponse({ status: 200, description: 'PASSWORD_RESET_SUCCESS' })
+  async resetPassword(@Body() resetDto: ResetPasswordDto) {
+    // Fixed: Changed from 'any'
+    this.logger.log(
+      `--- [ePRX_UV1] RESET_PASSWORD_ATTEMPT: ${resetDto.email} ---`,
+    );
+    try {
+      const result = await this.authService.resetPassword(resetDto);
+      this.logger.log(
+        `--- [ePRX_UV1] RESET_PASSWORD_SUCCESS: ${resetDto.email} ---`,
+      );
+      return result;
+    } catch (error: any) {
+      this.logger.error(`--- [ePRX_UV1] RESET_FAILURE: ${error.message} ---`);
+      throw error;
+    }
   }
 }
