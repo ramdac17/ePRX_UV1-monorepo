@@ -23,6 +23,7 @@ model User {
   activities        Activity[]
   articles          Article[]
   trainingPlans     TrainingPlan[]
+  tokenExpires      DateTime?
 }
 
 model Activity {

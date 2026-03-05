@@ -12,6 +12,7 @@ import {
   HttpCode,
   Body,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -20,32 +21,58 @@ import 'multer';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger('EPRX_AUTH_CONTROLLER');
+
   constructor(private authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: any) {
-    console.log('--- [ePRX_UV1] LOGIN_ATTEMPT ---');
+    this.logger.log(`--- [ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email} ---`);
     try {
       const result = await this.authService.login(loginDto);
-      console.log(`--- [ePRX_UV1] SUCCESS: ${loginDto.email} ---`);
+      this.logger.log(`--- [ePRX_UV1] SUCCESS: ${loginDto.email} ---`);
       return result;
     } catch (error: any) {
-      console.error('--- [ePRX_UV1] FAILURE ---', error.message);
+      this.logger.error(`--- [ePRX_UV1] LOGIN_FAILURE: ${error.message} ---`);
       throw error;
     }
   }
 
   @Post('register')
   async register(@Body() registerDto: any) {
-    console.log('--- [ePRX_UV1] REGISTRATION_ATTEMPT ---', registerDto.email);
+    this.logger.log(
+      `--- [ePRX_UV1] REGISTRATION_ATTEMPT: ${registerDto.email} ---`,
+    );
     try {
+      // Logic: This now generates OTP and sets 60s expiry in DB
       const result = await this.authService.register(registerDto);
-      console.log(`--- [ePRX_UV1] REG_SUCCESS: ${registerDto.email} ---`);
+      this.logger.log(
+        `--- [ePRX_UV1] REG_OTP_ISSUED: ${registerDto.email} ---`,
+      );
       return result;
     } catch (error: any) {
-      console.error('--- [ePRX_UV1] REG_FAILURE ---', error.message);
-      // NestJS will automatically send the right status code if authService throws a ConflictException or similar
+      this.logger.error(`--- [ePRX_UV1] REG_FAILURE: ${error.message} ---`);
+      throw error;
+    }
+  }
+
+  /**
+   * 🟢 NEW ENDPOINT: verify-otp
+   * Matches the mobile app call: api.post("/auth/verify-otp", { email, otp })
+   */
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(@Body() body: { email: string; otp: string }) {
+    this.logger.log(`--- [ePRX_UV1] VERIFICATION_ATTEMPT: ${body.email} ---`);
+    try {
+      const result = await this.authService.verifyOtp(body.email, body.otp);
+      this.logger.log(`--- [ePRX_UV1] VERIFICATION_SUCCESS: ${body.email} ---`);
+      return result;
+    } catch (error: any) {
+      this.logger.error(
+        `--- [ePRX_UV1] VERIFICATION_FAILURE: ${error.message} ---`,
+      );
       throw error;
     }
   }
@@ -53,9 +80,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req: any) {
-    // CRITICAL FIX: Don't just return req.user (it's only JWT data).
-    // Use the service to fetch the LATEST data from the DB, including the image!
-    // Note: Use 'userId' or 'sub' or 'id' depending on your JwtStrategy (usually sub or id)
     const userId = req.user.id || req.user.sub;
     return this.authService.getProfile(userId);
   }
@@ -91,21 +115,30 @@ export class AuthController {
     }
 
     const filePath = `/uploads/avatars/${file.filename}`;
-    const userId = req.user.id || req.user.sub; // Ensure we match the strategy key
+    const userId = req.user.id || req.user.sub;
 
     try {
       await this.authService.updateUserImage(userId, filePath);
-
       return {
         success: true,
         message: 'IDENTITY_IMAGE_SYNCED',
         url: filePath,
       };
     } catch (error) {
-      console.error('--- [ePRX_UV1] DB_UPDATE_FAILED ---', error);
-      throw new BadRequestException(
-        'Failed to update user profile image in database.',
-      );
+      this.logger.error('--- [ePRX_UV1] DB_UPDATE_FAILED ---', error);
+      throw new BadRequestException('Failed to update user profile image.');
     }
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.requestPasswordReset(email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetDto: any) {
+    return this.authService.resetPassword(resetDto);
   }
 }

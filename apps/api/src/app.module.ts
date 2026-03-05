@@ -17,6 +17,10 @@ import { HealthController } from './health.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: [
+        join(process.cwd(), '.env'),
+        join(process.cwd(), 'apps/api/.env'),
+      ],
     }),
     // ONLY ONE ServeStaticModule is needed
     ServeStaticModule.forRoot({
