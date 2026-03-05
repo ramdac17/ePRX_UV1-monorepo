@@ -16,6 +16,11 @@ export class AppController {
   }
 
   @Get()
+  getHello(): string {
+    return '📡 ePRX_UV1_UPLINK_ESTABLISHED: SYSTEM_STATUS_OPTIMAL';
+  }
+
+  @Get()
   getStatus() {
     return {
       data: { version: '1.0.0' },
