@@ -55,9 +55,9 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT || 3000;
-  // Binding to 0.0.0.0 is critical for Railway
-  await app.listen(port, '0.0.0.0');
+  const port = process.env.PORT || 3000; // Binding to 0.0.0.0 is critical for Railway
+
+  await app.listen(port, '0.0.0.0'); // Use 0.0.0.0 for external access
 
   logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
   logger.log(`📂 Static Assets Mounted: /uploads`);
