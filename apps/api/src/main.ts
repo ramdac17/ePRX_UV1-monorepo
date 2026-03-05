@@ -4,6 +4,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { json, urlencoded } from 'express';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('EPRX_BOOTSTRAP');
@@ -61,5 +62,21 @@ async function bootstrap() {
 
   logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
   logger.log(`📂 Static Assets Mounted: /uploads`);
+
+  // 1. Swagger Configuration
+  const config = new DocumentBuilder()
+    .setTitle('ePRX UV1 - CORE API')
+    .setDescription(
+      'Tactical interface for identity management and security protocols',
+    )
+    .setVersion('1.0')
+    .addBearerAuth() // Allows you to enter your JWT in the UI
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  // 2. Setup Swagger path at /api
+  SwaggerModule.setup('api', app, document);
 }
+
 bootstrap();
