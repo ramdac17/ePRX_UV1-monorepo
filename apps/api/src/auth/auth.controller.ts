@@ -30,6 +30,7 @@ import {
 import { RegisterDto } from '../dto/register.dto.js';
 import { LoginDto } from '../dto/login.dto.js';
 import { ResetPasswordDto } from '../dto/reset-password.dto.js';
+import { VerifyOtpDto } from '../dto/verify-otp.dto.js';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -76,11 +77,20 @@ export class AuthController {
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'OTP_VERIFIED_IDENTITY_CONFIRMED' })
-  async verifyOtp(@Body() body: { email: string; otp: string }) {
-    this.logger.log(`--- [ePRX_UV1] VERIFICATION_ATTEMPT: ${body.email} ---`);
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    // Fixed: Changed from generic body
+    this.logger.log(
+      `--- [ePRX_UV1] VERIFICATION_ATTEMPT: ${verifyOtpDto.email} ---`,
+    );
     try {
-      const result = await this.authService.verifyOtp(body.email, body.otp);
-      this.logger.log(`--- [ePRX_UV1] VERIFICATION_SUCCESS: ${body.email} ---`);
+      // Pass the DTO properties to your service
+      const result = await this.authService.verifyOtp(
+        verifyOtpDto.email,
+        verifyOtpDto.otp,
+      );
+      this.logger.log(
+        `--- [ePRX_UV1] VERIFICATION_SUCCESS: ${verifyOtpDto.email} ---`,
+      );
       return result;
     } catch (error: any) {
       this.logger.error(
