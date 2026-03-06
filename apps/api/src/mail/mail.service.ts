@@ -1,25 +1,35 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import {
-  SentMessageInfo,
-  Options,
-} from 'nodemailer/lib/smtp-transport/index.js';
+import { SentMessageInfo } from 'nodemailer/lib/smtp-transport/index.js';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter<SentMessageInfo, Options>;
+  private transporter: nodemailer.Transporter<SentMessageInfo>;
+  private readonly logger = new Logger('EPRX_MAIL_SERVICE');
 
   constructor() {
-    console.log('MAIL_HOST:', process.env.MAIL_HOST);
+    this.logger.log(
+      `Initializing Mail Uplink: ${process.env.MAIL_HOST}:${process.env.MAIL_PORT}`,
+    );
 
     this.transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
-      port: Number(process.env.MAIL_PORT),
-      secure: false,
+      // Change Port to 465 in your Railway Env Variables for this to work perfectly
+      port: Number(process.env.MAIL_PORT) || 465,
+      // secure: true is required for port 465
+      secure: true,
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
+      tls: {
+        // Forces IPv4 and prevents the ENETUNREACH error seen in Railway logs
+        servername: 'smtp.gmail.com',
+        rejectUnauthorized: false,
+      },
+      // Increase timeout to prevent the ETIMEDOUT error
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
     });
   }
 
@@ -40,8 +50,9 @@ export class MailService {
         </div>
       `,
       });
+      this.logger.log(`Verification email dispatched to: ${email}`);
     } catch (error) {
-      console.error('MAIL_ERROR:', error);
+      this.logger.error('MAIL_ERROR (Verification):', error);
       throw error;
     }
   }
@@ -63,7 +74,9 @@ export class MailService {
         </div>
       `,
       });
+      this.logger.log(`Recovery email dispatched to: ${email}`);
     } catch (error) {
+      this.logger.error('MAIL_ERROR (Recovery):', error);
       throw new Error('FAILED_TO_SEND_RECOVERY_EMAIL');
     }
   }
