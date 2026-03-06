@@ -8,27 +8,24 @@ export class MailService {
   private readonly logger = new Logger('EPRX_MAIL_SERVICE');
 
   constructor() {
-    this.logger.log(
-      `Initializing Mail Uplink: ${process.env.MAIL_HOST}:${process.env.MAIL_PORT}`,
-    );
+    this.logger.log(`Initializing Hard-Coded IPv4 Mail Uplink...`);
 
     this.transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      // Change Port to 465 in your Railway Env Variables for this to work perfectly
-      port: Number(process.env.MAIL_PORT) || 465,
-      // secure: true is required for port 465
+      // 1. Direct IPv4 for Google SMTP (bypasses IPv6 ENETUNREACH)
+      host: '74.125.142.108', // smtp.gmail.com resolved to this IPv4 on 2024-06-01
+      port: 465,
       secure: true,
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
       tls: {
-        // Forces IPv4 and prevents the ENETUNREACH error seen in Railway logs
+        // 2. This tells Gmail "I know I connected via IP, but I'm looking for smtp.gmail.com"
         servername: 'smtp.gmail.com',
         rejectUnauthorized: false,
       },
-      // Increase timeout to prevent the ETIMEDOUT error
-      connectionTimeout: 10000, // 10 seconds
+      // 3. Keep-alive settings
+      connectionTimeout: 10000,
       greetingTimeout: 10000,
     });
   }
