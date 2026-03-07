@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -15,4 +21,15 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty({ message: 'USERNAME_REQUIRED' })
   username!: string;
+
+  // 🆕 Add this to fix the "PROPERTY SHOULD NOT EXIST" error
+  @ApiProperty({ example: 'Kyo', required: false })
+  @IsString()
+  @IsOptional()
+  firstName!: string;
+
+  @ApiProperty({ example: 'Evanz', required: false })
+  @IsString()
+  @IsOptional()
+  lastName!: string;
 }
