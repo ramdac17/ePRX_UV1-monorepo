@@ -32,4 +32,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   lastName!: string;
+
+  @ApiProperty({ example: '09123456789', required: false })
+  @IsString()
+  @IsOptional()
+  mobile!: string;
 }
