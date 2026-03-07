@@ -68,8 +68,12 @@ export class MailService {
       const data = await response.json();
 
       if (!response.ok) {
-        this.logger.error(`RESEND_API_ERROR (${type}):`, data);
-        throw new Error(`MAIL_UPLINK_FAILURE: ${data.message}`);
+        // this.logger.error(`RESEND_API_ERROR (${type}):`, data);
+        this.logger.warn(
+          `--- [ePRX_UV1] MAIL_SANDBOX_LIMIT: Skipping email for ${body.to} ---`,
+        );
+        return { success: false, message: 'SANDBOX_LIMIT_REACHED' };
+        // throw new Error(`MAIL_UPLINK_FAILURE: ${data.message}`);
       }
 
       this.logger.log(
@@ -80,7 +84,7 @@ export class MailService {
       this.logger.error(
         `--- [ePRX_UV1] CRITICAL_MAIL_FAILURE: ${error.message} ---`,
       );
-      throw error;
+      return null;
     }
   }
 }
