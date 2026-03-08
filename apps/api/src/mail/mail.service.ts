@@ -49,9 +49,9 @@ export class MailService {
       const response = await fetch(this.BREVO_API_URL, {
         method: 'POST',
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': String(process.env.BREVO_API_KEY).trim(), // 🛡️ Force string and trim any accidental spaces
+          accept: 'application/json',
+          'content-type': 'application/json',
+          'api-key': String(process.env.BREVO_API_KEY).trim(), // 🛡️ Ensures no hidden spaces or undefined values
         },
         body: JSON.stringify(payload),
       });
