@@ -135,7 +135,7 @@ importers:
         specifier: ^22.10.7
         version: 22.19.13
       '@types/nodemailer':
-        specifier: ^7.0.10
+        specifier: ^7.0.11
         version: 7.0.11
       '@types/passport-jwt':
         specifier: ^4.0.1
