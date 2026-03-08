@@ -11,6 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // 🛰️ DYNAMIC CORS CONFIGURATION
+  // Added '*' for development/testing to resolve UPLINK_LOST errors
   const envOrigins = process.env.ALLOWED_ORIGINS;
   const origins = envOrigins
     ? envOrigins.split(',')
@@ -19,6 +20,7 @@ async function bootstrap() {
         'http://localhost:5173',
         'http://localhost:8081',
         /\.railway\.app$/,
+        '*', // 🔓 Temporary allow-all to ensure Mobile App connectivity
       ];
 
   app.enableCors({
@@ -32,20 +34,13 @@ async function bootstrap() {
 
   /**
    * 📂 STATIC ASSETS FIX:
-   * Remove the trailing slash from the prefix.
-   * Path-to-regexp v8 is very sensitive about trailing characters
-   * when combined with global prefixes.
+   * Standardized for Path-to-regexp v8 compatibility.
    */
   const uploadPath = join(process.cwd(), 'uploads');
   app.useStaticAssets(uploadPath, {
-    prefix: '/uploads', // Changed from '/uploads/' to '/uploads'
+    prefix: '/uploads',
   });
 
-  /**
-   * 🛠️ GLOBAL CONFIG FIX:
-   * Ensure the prefix is a simple string.
-   * Do NOT use wildcards here.
-   */
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(
@@ -56,29 +51,34 @@ async function bootstrap() {
     }),
   );
 
-  // 1. Swagger Configuration
+  // 🛡️ SWAGGER CONFIGURATION (Aligned with JWT-auth protocol)
   const config = new DocumentBuilder()
     .setTitle('ePRX UV1 - CORE API')
-    .setDescription('The official API documentation for ePRX UV1')
+    .setDescription('Mission-critical authentication and profile management')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // 🔑 Must match @ApiBearerAuth('JWT-auth') in controllers
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-
-  // 2. Setup Swagger path at /api
-  // 2. Setup Swagger
-  // We'll use 'swagger' as the path.
-  // NOTE: If you want it TOTALLY outside the /api prefix (at the root),
-  // this is the correct way.
   SwaggerModule.setup('swagger', app, document);
 
   const port = process.env.PORT || 3000;
+
+  // 🌍 Listen on 0.0.0.0 is mandatory for Railway visibility
   await app.listen(port, '0.0.0.0');
 
-  // Add these logs so you can see the EXACT URLs in Railway logs
-  logger.log(`🚀 ePRX UV1 Backend Uplink: http://0.0.0.0:${port}/api`);
-  logger.log(`📑 API Documentation: http://0.0.0.0:${port}/swagger`);
+  logger.log(`🚀 ePRX UV1 Backend Uplink: http://localhost:${port}/api`);
+  logger.log(`📑 API Documentation: http://localhost:${port}/swagger`);
 }
 
 bootstrap();
