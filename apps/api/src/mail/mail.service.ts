@@ -27,7 +27,7 @@ export class MailService {
     color: string,
   ) {
     const payload = {
-      // 🛡️ Use your Gmail here. Brevo allows this for testing.
+      // 🛡️ Use your Gmail here. Brevo allows this for testing. //
       sender: { name: 'ePRX UV1', email: process.env.GMAIL_USER },
       to: [{ email: email }],
       subject: `[ePRX_UV1] ${subject}`,
