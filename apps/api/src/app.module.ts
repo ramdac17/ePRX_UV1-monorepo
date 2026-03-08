@@ -7,11 +7,11 @@ import { ArticlesModule } from './articles/articles.module.js';
 import { UserModule } from './user/user.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path'; // Removed dirname as we'll use process.cwd()
+import { join } from 'path';
 import { ConfigModule } from '@nestjs/config';
 import { EventsModule } from './events/events.module.js';
 import { ActivitiesModule } from './activities/activities.module.js';
-import { HealthController } from './health.controller';
+import { HealthController } from './health.controller.js';
 
 @Module({
   imports: [
@@ -22,15 +22,15 @@ import { HealthController } from './health.controller';
         join(process.cwd(), 'apps/api/.env'),
       ],
     }),
-    // ONLY ONE ServeStaticModule is needed
+
+    // ServeStaticModule configured for ePRX UV1 Production
     ServeStaticModule.forRoot({
-      // process.cwd() points to the folder where you run 'npm run start'
-      // This is usually the root of /apps/api/
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-      // This allows the browser to view the files directly
-      exclude: ['/api/(.*)'],
+      // Fix: Updated from /api/(.*) to /api/:splat* for path-to-regexp v8 compatibility
+      exclude: ['/api/:splat*'],
     }),
+
     EventsModule,
     MailModule,
     AuthModule,
@@ -43,5 +43,3 @@ import { HealthController } from './health.controller';
   providers: [AppService],
 })
 export class AppModule {}
-
-// DELETE THE MANUALLY DEFINED fileURLToPath FUNCTION THAT WAS AT THE BOTTOM
