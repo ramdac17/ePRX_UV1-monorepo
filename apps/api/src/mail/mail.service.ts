@@ -5,12 +5,12 @@ export class MailService {
   private readonly logger = new Logger('EPRX_MAIL_SERVICE');
   private readonly BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
-  // 1. Verification Method
+  // 1. Verification Method // 🆕 Added for registration flow
   async sendVerificationEmail(email: string, otp: string) {
     return this.dispatchMail(email, 'IDENTITY_VERIFICATION', otp, '#d4ff00');
   }
 
-  // 2. Password Reset Method
+  // 2. Password Reset Method // 🆕 Added for password recovery flow
   async sendPasswordResetEmail(email: string, otp: string) {
     return this.dispatchMail(
       email,
