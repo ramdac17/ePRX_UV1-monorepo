@@ -1,5 +1,3 @@
-
-
 import {
   Controller,
   Post,
@@ -59,12 +57,14 @@ export class AuthController {
   }
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED) // Explicitly set 201
   @ApiResponse({ status: 201, description: 'REG_OTP_SENT_TO_EMAIL' })
   async register(@Body() registerDto: RegisterDto) {
     this.logger.log(
       `--- [ePRX_UV1] REGISTRATION_ATTEMPT: ${registerDto.email} ---`,
     );
     try {
+      // Logic passed as object to maintain DTO integrity
       return await this.authService.register(registerDto);
     } catch (error: any) {
       this.logger.error(`--- [ePRX_UV1] REG_FAILURE: ${error.message} ---`);
@@ -136,11 +136,15 @@ export class AuthController {
     @Request() req: any,
   ) {
     if (!file) throw new BadRequestException('No file provided.');
+
+    this.logger.log(`--- [ePRX_UV1] AVATAR_UPLOAD_INITIATED ---`);
     const filePath = `/uploads/avatars/${file.filename}`;
     const userId = req.user.id || req.user.sub;
+
     try {
       return await this.authService.updateUserImage(userId, filePath);
     } catch (error) {
+      this.logger.error(`--- [ePRX_UV1] AVATAR_UPLOAD_FAILURE ---`);
       throw new BadRequestException('Failed to update user profile image.');
     }
   }
@@ -148,9 +152,12 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'RESET_OTP_SENT' })
-  async forgotPassword(@Body('email') email: string) {
-    this.logger.log(`--- [ePRX_UV1] FORGOT_PASSWORD_REQUEST: ${email} ---`);
-    return this.authService.requestPasswordReset(email);
+  // Using an object here ensures the ValidationPipe handles the email string correctly
+  async forgotPassword(@Body() body: { email: string }) {
+    this.logger.log(
+      `--- [ePRX_UV1] FORGOT_PASSWORD_REQUEST: ${body.email} ---`,
+    );
+    return this.authService.requestPasswordReset(body.email);
   }
 
   @Post('reset-password')
