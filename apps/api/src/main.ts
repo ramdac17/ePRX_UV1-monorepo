@@ -11,26 +11,44 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // 🛰️ DYNAMIC CORS CONFIGURATION
-  // Added '*' for development/testing to resolve UPLINK_LOST errors
+  const isProduction = process.env.NODE_ENV === 'production';
   const envOrigins = process.env.ALLOWED_ORIGINS;
-  const origins = envOrigins
+
+  const baseOrigins = envOrigins
     ? envOrigins.split(',')
     : [
         'http://localhost:3000',
         'http://localhost:5173',
         'http://localhost:8081',
-        /\.railway\.app$/,
-        '*', // 🔓 Temporary allow-all to ensure Mobile App connectivity
+        'http://127.0.0.1:3000',
       ];
 
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://192.168.0.152:3000', // Add your specific local IP
-      'https://your-frontend-domain.vercel.app', // Add your production frontend too
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, or curl)
+      if (!origin) return callback(null, true);
+
+      const isAllowed = baseOrigins.some((allowedOrigin) => {
+        if (allowedOrigin === '*') return true;
+        return origin.startsWith(allowedOrigin);
+      });
+
+      // Automatically allow local network IPs in development
+      const isLocalNetwork =
+        !isProduction &&
+        (origin.includes('192.168.') || origin.includes('10.0.'));
+      const isRailway = origin.endsWith('.railway.app');
+
+      if (isAllowed || isLocalNetwork || isRailway) {
+        callback(null, true);
+      } else {
+        logger.warn(`🚫 CORS Blocked Origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    optionsSuccessStatus: 204, // Essential for some legacy browser preflights
   });
 
   app.use(json({ limit: '10mb' }));
@@ -38,7 +56,7 @@ async function bootstrap() {
 
   /**
    * 📂 STATIC ASSETS FIX:
-   * Standardized for Path-to-regexp v8 compatibility.
+   * Serving from root-level /uploads folder
    */
   const uploadPath = join(process.cwd(), 'uploads');
   app.useStaticAssets(uploadPath, {
@@ -55,7 +73,7 @@ async function bootstrap() {
     }),
   );
 
-  // 🛡️ SWAGGER CONFIGURATION (Aligned with JWT-auth protocol)
+  // 🛡️ SWAGGER CONFIGURATION
   const config = new DocumentBuilder()
     .setTitle('ePRX UV1 - CORE API')
     .setDescription('Mission-critical authentication and profile management')
@@ -69,20 +87,24 @@ async function bootstrap() {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'JWT-auth', // 🔑 Must match @ApiBearerAuth('JWT-auth') in controllers
+      'JWT-auth',
     )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3001; // Changed default to 3001 to avoid Next.js conflict
 
   // 🌍 Listen on 0.0.0.0 is mandatory for Railway visibility
   await app.listen(port, '0.0.0.0');
 
-  logger.log(`🚀 ePRX UV1 Backend Uplink: http://localhost:${port}/api`);
-  logger.log(`📑 API Documentation: http://localhost:${port}/swagger`);
+  const serverUrl = isProduction
+    ? `https://your-railway-url.railway.app`
+    : `http://localhost:${port}`;
+
+  logger.log(`🚀 ePRX UV1 Backend Uplink: ${serverUrl}/api`);
+  logger.log(`📑 API Documentation: ${serverUrl}/swagger`);
 }
 
 bootstrap();
