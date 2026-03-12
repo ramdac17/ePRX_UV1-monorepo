@@ -26,18 +26,25 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman, or curl)
-      if (!origin) return callback(null, true);
+      if (!origin || !isProduction) return callback(null, true);
 
-      const isAllowed = baseOrigins.some((allowedOrigin) => {
-        if (allowedOrigin === '*') return true;
-        return origin.startsWith(allowedOrigin);
-      });
+      const isAllowed = baseOrigins.some((allowed) =>
+        origin.startsWith(allowed),
+      );
+      const isRailway = origin.endsWith('.railway.app');
+
+      if (isAllowed || isRailway) {
+        callback(null, true);
+      } else {
+        // 💡 Add this log so you can see EXACTLY what string is being rejected in Railway Logs
+        logger.error(`CORS_REJECTED_ORIGIN: ${origin}`);
+        callback(new Error('CORS_POLICY_VIOLATION'));
+      }
 
       // Automatically allow local network IPs in development
       const isLocalNetwork =
         !isProduction &&
         (origin.includes('192.168.') || origin.includes('10.0.'));
-      const isRailway = origin.endsWith('.railway.app');
 
       if (isAllowed || isLocalNetwork || isRailway) {
         callback(null, true);
