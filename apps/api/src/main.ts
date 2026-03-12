@@ -24,7 +24,11 @@ async function bootstrap() {
       ];
 
   app.enableCors({
-    origin: origins,
+    origin: [
+      'http://localhost:3000',
+      'http://192.168.0.152:3000', // Add your specific local IP
+      'https://your-frontend-domain.vercel.app', // Add your production frontend too
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
