@@ -1,3 +1,37 @@
+import { AuthService } from './auth.service.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import {
+  Controller,
+  Post,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Request,
+  BadRequestException,
+  Get,
+  HttpCode,
+  Body,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import 'multer';
+import {
+  ApiBody,
+  ApiResponse,
+  ApiTags,
+  ApiBearerAuth,
+  ApiConsumes,
+} from '@nestjs/swagger';
+
+// Fixed Imports: Added .js extensions to match your bootstrap style
+import { RegisterDto } from '../dto/register.dto.js';
+import { LoginDto } from '../dto/login.dto.js';
+import { ResetPasswordDto } from '../dto/reset-password.dto.js';
+import { VerifyOtpDto } from '../dto/verify-otp.dto.js';
+
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
