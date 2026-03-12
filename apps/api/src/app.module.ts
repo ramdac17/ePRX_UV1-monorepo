@@ -27,8 +27,12 @@ import { HealthController } from './health.controller.js';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-      // Fix: Updated from /api/(.*) to /api/:splat* for path-to-regexp v8 compatibility
-      exclude: ['/api/:splat*'],
+      /**
+       * 🚨 FIX APPLIED:
+       * Changed '/api/:splat*' -> '/api/(.*)'
+       * path-to-regexp v8+ (NestJS 11) requires this syntax for wildcards.
+       */
+      exclude: ['/api/(.*)'],
     }),
 
     EventsModule,
