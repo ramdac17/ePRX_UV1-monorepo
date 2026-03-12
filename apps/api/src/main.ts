@@ -25,37 +25,30 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, or curl)
-      if (!origin || !isProduction) return callback(null, true);
+      // 1. Always allow non-browser requests or development mode
+      if (!origin || !isProduction) {
+        return callback(null, true);
+      }
 
+      // 2. Define permission logic
       const isAllowed = baseOrigins.some((allowed) =>
         origin.startsWith(allowed),
       );
       const isRailway = origin.endsWith('.railway.app');
-
-      if (isAllowed || isRailway) {
-        callback(null, true);
-      } else {
-        // 💡 Add this log so you can see EXACTLY what string is being rejected in Railway Logs
-        logger.error(`CORS_REJECTED_ORIGIN: ${origin}`);
-        callback(new Error('CORS_POLICY_VIOLATION'));
-      }
-
-      // Automatically allow local network IPs in development
       const isLocalNetwork =
-        !isProduction &&
-        (origin.includes('192.168.') || origin.includes('10.0.'));
+        origin.includes('192.168.') || origin.includes('10.0.');
 
-      if (isAllowed || isLocalNetwork || isRailway) {
+      // 3. Single point of decision
+      if (isAllowed || isRailway || isLocalNetwork) {
         callback(null, true);
       } else {
-        logger.warn(`🚫 CORS Blocked Origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        logger.error(`🚫 CORS_REJECTED_ORIGIN: ${origin}`);
+        callback(new Error('CORS_POLICY_VIOLATION'), false);
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    optionsSuccessStatus: 204, // Essential for some legacy browser preflights
+    optionsSuccessStatus: 204,
   });
 
   app.use(json({ limit: '10mb' }));
