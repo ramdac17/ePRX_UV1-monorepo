@@ -10,13 +10,13 @@ import {
   Body,
   Delete,
   UseGuards,
-  Request as ReqDecorator,
   UnauthorizedException,
+  forwardRef,
   Req,
+  Inject,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { extname, join } from 'path';
 import { UserService } from './user.service';
 import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -36,6 +36,7 @@ export class UpdateUserProfileDto {
 export class UserController {
   constructor(
     private readonly userService: UserService,
+    @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
   ) {}
 
