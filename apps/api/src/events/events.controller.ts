@@ -26,7 +26,7 @@ export class EventsController {
 
   @Post()
   @UseInterceptors(
-    FileInterceptor('image', {
+    FileInterceptor('file', {
       storage: memoryStorage(), // ✅ Required for Railway/Cloudinary
     }),
   )
