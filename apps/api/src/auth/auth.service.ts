@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   Logger,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,11 +11,17 @@ import { PrismaService } from '../prisma.service.js';
 import { UserService } from '../user/user.service.js';
 import { MailService } from '../mail/mail.service.js';
 import * as bcrypt from 'bcrypt';
+import {
+  v2 as cloudinary,
+  UploadApiResponse,
+  UploadApiErrorResponse,
+} from 'cloudinary';
+// @ts-ignore - streamifier often lacks native type exports in some ESM setups
+import * as streamifier from 'streamifier';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('EPRX_AUTH_SERVICE');
-  getProfile: any;
 
   constructor(
     private prisma: PrismaService,
@@ -22,16 +29,17 @@ export class AuthService {
     private mailService: MailService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
-
-  private generateToken(payload: any): string {
-    const secret =
-      this.configService.get<string>('JWT_SECRET') || 'DEV_SECRET_UV1_2026';
-    return this.jwtService.sign(payload, { secret });
+  ) {
+    // ☁️ Initialize Cloudinary
+    cloudinary.config({
+      cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+    });
   }
 
   async login(loginDto: any) {
-    this.logger.log(`[ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email}`);
+    this.logger.log(`--- [ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email} ---`);
     const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -40,7 +48,6 @@ export class AuthService {
       throw new UnauthorizedException('ACCESS_DENIED: Invalid Credentials');
     }
 
-    // 🛡️ BLOCK: Enforce Email Verification
     if (!user.emailVerified) {
       throw new UnauthorizedException(
         'IDENTITY_LOCKED: PLEASE VERIFY YOUR EMAIL.',
@@ -52,6 +59,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
     };
+
     const {
       password: _,
       verificationToken: __,
@@ -61,8 +69,11 @@ export class AuthService {
 
     return {
       user: result,
-      accessToken: this.generateToken(payload), // Aligned with frontend expectation
+      accessToken: this.generateToken(payload),
     };
+  }
+  generateToken(payload: { sub: string; email: string; username: string; }) {
+    throw new Error('Method not implemented.');
   }
 
   async register(registerDto: any) {
@@ -72,12 +83,12 @@ export class AuthService {
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
-    if (existingUser) throw new UnauthorizedException('USER_ALREADY_EXISTS');
+    if (existingUser) throw new BadRequestException('USER_ALREADY_EXISTS');
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
-    expiryDate.setMinutes(expiryDate.getMinutes() + 10); // Changed to 10m for better UX
+    expiryDate.setMinutes(expiryDate.getMinutes() + 10);
 
     await this.prisma.user.create({
       data: {
@@ -89,7 +100,7 @@ export class AuthService {
         password: hashedPassword,
         verificationToken: otp,
         tokenExpires: expiryDate,
-        emailVerified: false, // Explicitly false on creation
+        emailVerified: false,
       },
     });
 
@@ -112,7 +123,6 @@ export class AuthService {
       throw new BadRequestException('INVALID_CODE');
     }
 
-    // ✅ THE FLIP: Atomic update to avoid password re-hashing
     await this.prisma.user.update({
       where: { email },
       data: {
@@ -125,13 +135,51 @@ export class AuthService {
     return { status: 'VERIFIED', message: 'IDENTITY_ACTIVATED' };
   }
 
-  async updateUserImage(userId: string, imagePath: string) {
-    return await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        image: imagePath,
-      },
+  /**
+   * 🛰️ CLOUDINARY UPLOAD LOGIC
+   * Handles the buffer stream to avoid ephemeral disk issues on Railway
+   */
+  async uploadToCloudinary(
+    file: any, // Changed to 'any' if @types/multer isn't loaded globally
+  ): Promise<UploadApiResponse> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'eprx_uv1_avatars',
+          resource_type: 'auto',
+          transformation: [{ width: 500, height: 500, crop: 'limit' }],
+        },
+        (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+          if (error) {
+            this.logger.error(`Cloudinary Error: ${JSON.stringify(error)}`);
+            return reject(error);
+          }
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      // Using the underlying buffer from Multer
+      if (!file.buffer) {
+        return reject(new Error('No file buffer found. Check Multer config.'));
+      }
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
+  }
+
+  async updateUserImage(userId: string, imageUrl: string) {
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: { image: imageUrl },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `--- [ePRX_UV1] DB_IMAGE_UPDATE_FAILURE: ${errorMessage} ---`,
+      );
+      throw new InternalServerErrorException('FAILED_TO_UPDATE_USER_IMAGE_REF');
+    }
   }
 
   async requestPasswordReset(email: string) {
@@ -140,7 +188,7 @@ export class AuthService {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
-    expiryDate.setSeconds(expiryDate.getSeconds() + 60); // 60s TTL
+    expiryDate.setSeconds(expiryDate.getSeconds() + 600); // Increased to 10m for stability
 
     await this.prisma.user.update({
       where: { email },

@@ -137,15 +137,17 @@ export class AuthController {
   ) {
     if (!file) throw new BadRequestException('No file provided.');
 
-    this.logger.log(`--- [ePRX_UV1] AVATAR_UPLOAD_INITIATED ---`);
-    const filePath = `/uploads/avatars/${file.filename}`;
-    const userId = req.user.id || req.user.sub;
+    this.logger.log(`--- [ePRX_UV1] CLOUDINARY_UPLOAD_START ---`);
 
     try {
-      return await this.authService.updateUserImage(userId, filePath);
+      // You can call a method in your service that uploads the buffer to Cloudinary
+      const result = await this.authService.uploadToCloudinary(file);
+      const userId = req.user.id || req.user.sub;
+
+      return await this.authService.updateUserImage(userId, result.secure_url);
     } catch (error) {
-      this.logger.error(`--- [ePRX_UV1] AVATAR_UPLOAD_FAILURE ---`);
-      throw new BadRequestException('Failed to update user profile image.');
+      this.logger.error(`--- [ePRX_UV1] CLOUDINARY_UPLOAD_FAILURE ---`);
+      throw new BadRequestException('Cloud upload failed.');
     }
   }
 
