@@ -162,6 +162,7 @@ export class AuthService {
    * 🛰️ CLOUDINARY UPLOAD LOGIC
    */
   async uploadToCloudinary(file: any): Promise<UploadApiResponse> {
+    this.logger.log(`🛰️ BUFFER_SIZE: ${file?.buffer?.length || 0} bytes`);
     return new Promise((resolve, reject) => {
       if (!file || !file.buffer) {
         return reject(new BadRequestException('INVALID_FILE_BUFFER'));
