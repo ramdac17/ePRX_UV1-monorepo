@@ -178,6 +178,10 @@ export class AuthService {
           result: UploadApiResponse | undefined,
         ) => {
           if (error) {
+            console.error(
+              '🔴 CLOUDINARY_SDK_ERROR_OBJECT:',
+              JSON.stringify(error, null, 2),
+            );
             this.logger.error(`Cloudinary Error: ${JSON.stringify(error)}`);
             return reject(error);
           }
