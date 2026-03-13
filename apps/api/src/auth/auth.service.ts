@@ -16,7 +16,7 @@ import {
   UploadApiResponse,
   UploadApiErrorResponse,
 } from 'cloudinary';
-// @ts-ignore - streamifier often lacks native type exports in some ESM setups
+// @ts-ignore
 import * as streamifier from 'streamifier';
 
 @Injectable()
@@ -36,6 +36,32 @@ export class AuthService {
       api_key: this.configService.get('CLOUDINARY_API_KEY'),
       api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
     });
+  }
+
+  /**
+   * ✅ FIX: Implemented missing token generation
+   */
+  private generateToken(payload: {
+    sub: string;
+    email: string;
+    username: string;
+  }) {
+    const secret =
+      this.configService.get<string>('JWT_SECRET') || 'DEV_SECRET_UV1_2026';
+    return this.jwtService.sign(payload, { secret });
+  }
+
+  /**
+   * ✅ FIX: Added missing getProfile (Resolves GitHub Actions Build Error)
+   */
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new UnauthorizedException('USER_NOT_FOUND');
+
+    const { password, verificationToken, tokenExpires, ...result } = user;
+    return result;
   }
 
   async login(loginDto: any) {
@@ -71,9 +97,6 @@ export class AuthService {
       user: result,
       accessToken: this.generateToken(payload),
     };
-  }
-  generateToken(payload: { sub: string; email: string; username: string; }) {
-    throw new Error('Method not implemented.');
   }
 
   async register(registerDto: any) {
@@ -137,19 +160,23 @@ export class AuthService {
 
   /**
    * 🛰️ CLOUDINARY UPLOAD LOGIC
-   * Handles the buffer stream to avoid ephemeral disk issues on Railway
    */
-  async uploadToCloudinary(
-    file: any, // Changed to 'any' if @types/multer isn't loaded globally
-  ): Promise<UploadApiResponse> {
+  async uploadToCloudinary(file: any): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
+      if (!file || !file.buffer) {
+        return reject(new BadRequestException('INVALID_FILE_BUFFER'));
+      }
+
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'eprx_uv1_avatars',
           resource_type: 'auto',
           transformation: [{ width: 500, height: 500, crop: 'limit' }],
         },
-        (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+        (
+          error: UploadApiErrorResponse | undefined,
+          result: UploadApiResponse | undefined,
+        ) => {
           if (error) {
             this.logger.error(`Cloudinary Error: ${JSON.stringify(error)}`);
             return reject(error);
@@ -157,11 +184,6 @@ export class AuthService {
           resolve(result as UploadApiResponse);
         },
       );
-
-      // Using the underlying buffer from Multer
-      if (!file.buffer) {
-        return reject(new Error('No file buffer found. Check Multer config.'));
-      }
 
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
@@ -174,7 +196,8 @@ export class AuthService {
         data: { image: imageUrl },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
         `--- [ePRX_UV1] DB_IMAGE_UPDATE_FAILURE: ${errorMessage} ---`,
       );
@@ -188,7 +211,7 @@ export class AuthService {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
-    expiryDate.setSeconds(expiryDate.getSeconds() + 600); // Increased to 10m for stability
+    expiryDate.setMinutes(10); // 10 minutes stability
 
     await this.prisma.user.update({
       where: { email },
