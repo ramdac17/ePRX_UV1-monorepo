@@ -23,24 +23,25 @@ import { HealthController } from './health.controller.js';
       ],
     }),
 
-    // ServeStaticModule configured for ePRX UV1 Production
+    /**
+     * 🛰️ ePRX UV1 Note:
+     * We are now using Cloudinary for User Avatars.
+     * ServeStaticModule is kept here only for legacy support or non-cloud assets.
+     */
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-      /**
-       * 🚨 FIX APPLIED:
-       * Changed '/api/:splat*' -> '/api/(.*)'
-       * path-to-regexp v8+ (NestJS 11) requires this syntax for wildcards.
-       */
+      // Wildcard fix for path-to-regexp v8 (NestJS 11)
       exclude: ['/api/(.*)'],
     }),
 
-    EventsModule,
-    MailModule,
-    AuthModule,
+    // Order matters slightly for initialization; keep core modules first
     PrismaModule,
-    ArticlesModule,
+    MailModule,
     UserModule,
+    AuthModule,
+    EventsModule,
+    ArticlesModule,
     ActivitiesModule,
   ],
   controllers: [AppController, HealthController],
