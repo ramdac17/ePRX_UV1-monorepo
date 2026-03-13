@@ -15,9 +15,10 @@ import {
   Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { UserService } from './user.service';
+import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedUser } from './user.interface';
 
@@ -33,7 +34,10 @@ export class UpdateUserProfileDto {
 // --- Controller ---
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly authService: AuthService,
+  ) {}
 
   /** DELETE: Remove user account (authenticated user only) */
   @UseGuards(JwtAuthGuard)
@@ -70,19 +74,13 @@ export class UserController {
   /** POST: Upload user profile image */
   @Post(':id/upload-image')
   @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: join(process.cwd(), 'uploads'),
-        filename: (_, file, callback) => {
-          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          const ext = extname(file.originalname);
-          callback(null, `image-${uniqueSuffix}${ext}`);
-        },
-      }),
+    // ✅ Change 'image' to 'file' to match our frontend fix
+    FileInterceptor('file', {
+      storage: memoryStorage(), // ✅ Required for Cloudinary buffers
       fileFilter: (_, file, callback) => {
         if (!file.mimetype?.match(/\/(jpg|jpeg|png)$/)) {
           return callback(
-            new BadRequestException('Only image files are allowed!'),
+            new BadRequestException('Only image files (JPG/PNG) are allowed!'),
             false,
           );
         }
@@ -92,15 +90,21 @@ export class UserController {
   )
   async uploadFile(
     @Param('id') id: string,
-    @UploadedFile() file?: Express.Multer.File,
-    @Body() body?: UpdateUserProfileDto,
+    @UploadedFile() file: Express.Multer.File, // Should not be optional if you want a 400 on empty
+    @Body() body: any,
   ) {
-    const imagePath = file?.filename;
+    if (!file) {
+      throw new BadRequestException('FILE_NOT_FOUND_IN_REQUEST');
+    }
 
+    // 1. 🛰️ Send the buffer to Cloudinary via AuthService
+    const cloudinaryResponse = await this.authService.uploadToCloudinary(file);
+
+    // 2. 📝 Update the Database with the new Secure URL
     const updatedUser = await this.userService.updateProfile(
       id,
       body ?? {},
-      imagePath,
+      cloudinaryResponse.secure_url, // Use the full https link from Cloudinary
     );
 
     return {
