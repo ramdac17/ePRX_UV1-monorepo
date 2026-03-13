@@ -1,52 +1,56 @@
-import { 
-  Controller, 
-  Get, 
-  Post,          // ADDED
-  Body,          // ADDED
-  Param, 
-  NotFoundException, 
-  UseInterceptors, // ADDED
-  UploadedFile    // ADDED
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  NotFoundException,
+  UseInterceptors,
+  UploadedFile,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express'; // ADDED
-import { EventsService } from './events.service.js'; 
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer'; // ✅ Use memory for Cloudinary
+import { EventsService } from './events.service.js';
+import { AuthService } from '../auth/auth.service.js'; // ✅ Needed for Cloudinary logic
 
 @Controller(['events', 'event'])
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    // Injecting AuthService to use our cloud upload utility
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+  ) {}
 
-  // FIXED: The @Post route now has a function attached to it
- @Post()
-  @UseInterceptors(FileInterceptor('image', {
-    storage: diskStorage({
-      // This ensures the file is physically saved in the uploads folder
-      destination: join(process.cwd(), 'uploads'), 
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
-      },
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(), // ✅ Required for Railway/Cloudinary
     }),
-  }))
-  async create(
-    @UploadedFile() file: Express.Multer.File, 
-    @Body() body: any
-  ) {
-    // Now 'file' will have a 'filename' property!
-    // console.log('NEW_UPLOAD_LOG: File saved as ->', file?.filename);
+  )
+  async create(@UploadedFile() file: Express.Multer.File, @Body() body: any) {
+    let imageUrl = null;
+
+    if (file) {
+      // 🛰️ Upload to Cloudinary instead of local disk
+      const cloudinaryResponse =
+        await this.authService.uploadToCloudinary(file);
+      imageUrl = cloudinaryResponse.secure_url;
+    }
 
     return this.eventsService.createEvent({
       ...body,
-      image: file ? file.filename : null, // This will no longer be null
+      // Now storing the full HTTPS URL in the database
+      image: imageUrl,
     });
   }
-        
+
   @Get()
   async findAll() {
     const events = await this.eventsService.getEvents();
-    if (!events) return [];
-    return events;
+    return events || [];
   }
 
   @Get(':id')
