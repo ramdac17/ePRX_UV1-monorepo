@@ -13,8 +13,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import {
   ApiBody,
   ApiResponse,
@@ -27,13 +25,12 @@ import {
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
-// 🏗️ DTOs (Ensuring .js extensions for ESM compatibility)
+// 🏗️ DTOs
 import { RegisterDto } from '../dto/register.dto.js';
 import { LoginDto } from '../dto/login.dto.js';
 import { ResetPasswordDto } from '../dto/reset-password.dto.js';
 import { VerifyOtpDto } from '../dto/verify-otp.dto.js';
 
-// 📝 Express/Multer type for the file upload
 import type { Express } from 'express';
 
 @ApiTags('Authentication')
@@ -45,51 +42,23 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'JWT_ISSUE_SUCCESS' })
   async login(@Body() loginDto: LoginDto) {
-    this.logger.log(`--- [ePRX_UV1] LOGIN_ATTEMPT: ${loginDto.email} ---`);
-    try {
-      return await this.authService.login(loginDto);
-    } catch (error: any) {
-      this.logger.error(`--- [ePRX_UV1] LOGIN_FAILURE: ${error.message} ---`);
-      throw error;
-    }
+    return await this.authService.login(loginDto);
   }
 
   @Post('register')
-  @HttpCode(HttpStatus.CREATED) // Explicitly set 201
-  @ApiResponse({ status: 201, description: 'REG_OTP_SENT_TO_EMAIL' })
+  @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
-    this.logger.log(
-      `--- [ePRX_UV1] REGISTRATION_ATTEMPT: ${registerDto.email} ---`,
-    );
-    try {
-      // Logic passed as object to maintain DTO integrity
-      return await this.authService.register(registerDto);
-    } catch (error: any) {
-      this.logger.error(`--- [ePRX_UV1] REG_FAILURE: ${error.message} ---`);
-      throw error;
-    }
+    return await this.authService.register(registerDto);
   }
 
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'OTP_VERIFIED_IDENTITY_CONFIRMED' })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    this.logger.log(
-      `--- [ePRX_UV1] VERIFICATION_ATTEMPT: ${verifyOtpDto.email} ---`,
+    return await this.authService.verifyOtp(
+      verifyOtpDto.email,
+      verifyOtpDto.otp,
     );
-    try {
-      return await this.authService.verifyOtp(
-        verifyOtpDto.email,
-        verifyOtpDto.otp,
-      );
-    } catch (error: any) {
-      this.logger.error(
-        `--- [ePRX_UV1] VERIFICATION_FAILURE: ${error.message} ---`,
-      );
-      throw error;
-    }
   }
 
   @ApiBearerAuth()
@@ -100,6 +69,10 @@ export class AuthController {
     return this.authService.getProfile(userId);
   }
 
+  /**
+   * 🛰️ UPLOAD_AVATAR (MEMORY STREAM VERSION)
+   * This is now aligned with AuthModule's memoryStorage.
+   */
   @Post('upload-avatar')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
@@ -110,76 +83,43 @@ export class AuthController {
     },
   })
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/avatars',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `avatar-${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return cb(
-            new BadRequestException('Only image files allowed!'),
-            false,
-          );
-        }
-        cb(null, true);
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file')) // 👈 Clean Interceptor (Uses Module Config)
   async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
     @Request() req: any,
   ) {
-    if (!file) throw new BadRequestException('No file provided.');
+    if (!file) throw new BadRequestException('FILE_NOT_FOUND_IN_PAYLOAD');
 
-    this.logger.log(`--- [ePRX_UV1] CLOUDINARY_UPLOAD_START ---`);
+    this.logger.log(
+      `--- [ePRX_UV1] UPLOAD_INIT: ${file.originalname} (${file.size} bytes) ---`,
+    );
 
     try {
-      // You can call a method in your service that uploads the buffer to Cloudinary
+      // Passes the memory buffer directly to Cloudinary
       const result = await this.authService.uploadToCloudinary(file);
       const userId = req.user.id || req.user.sub;
 
       return await this.authService.updateUserImage(userId, result.secure_url);
-    } catch (error) {
-      this.logger.error(`--- [ePRX_UV1] CLOUDINARY_UPLOAD_FAILURE ---`);
-      throw new BadRequestException('Cloud upload failed.');
+    } catch (error: any) {
+      this.logger.error(`--- [ePRX_UV1] UPLOAD_FAILURE: ${error.message} ---`);
+      throw new BadRequestException(`CLOUD_UPLOAD_FAILED: ${error.message}`);
     }
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'RESET_OTP_SENT' })
-  // Using an object here ensures the ValidationPipe handles the email string correctly
   async forgotPassword(@Body() body: { email: string }) {
-    this.logger.log(
-      `--- [ePRX_UV1] FORGOT_PASSWORD_REQUEST: ${body.email} ---`,
-    );
     return this.authService.requestPasswordReset(body.email);
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiResponse({ status: 200, description: 'PASSWORD_RESET_SUCCESS' })
   async resetPassword(@Body() resetDto: ResetPasswordDto) {
-    this.logger.log(
-      `--- [ePRX_UV1] RESET_PASSWORD_ATTEMPT: ${resetDto.email} ---`,
-    );
-    try {
-      return await this.authService.resetPassword(resetDto);
-    } catch (error: any) {
-      this.logger.error(`--- [ePRX_UV1] RESET_FAILURE: ${error.message} ---`);
-      throw error;
-    }
+    return await this.authService.resetPassword(resetDto);
   }
 
   @Get('test-cloudinary')
   async testCloudinary() {
-    this.logger.log('--- [ePRX_UV1] MANUAL_CLOUDINARY_HANDSHAKE_INITIATED ---');
     return this.authService.checkCloudinaryConnection();
   }
 }

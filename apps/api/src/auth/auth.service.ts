@@ -216,7 +216,7 @@ export class AuthService {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
-    expiryDate.setMinutes(10); // 10 minutes stability
+    expiryDate.setMinutes(expiryDate.getMinutes() + 10);
 
     await this.prisma.user.update({
       where: { email },
