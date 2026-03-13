@@ -6,6 +6,8 @@ import { UserModule } from '../user/user.module.js';
 import { MailModule } from '../mail/mail.module.js';
 import { JwtStrategy } from '../auth/strategies/jwt.strategy.js';
 import { JwtModule } from '@nestjs/jwt';
+import { MulterModule } from '@nestjs/platform-express'; // 👈 ADD THIS IMPORT
+import { memoryStorage } from 'multer';
 
 @Module({
   imports: [
@@ -15,6 +17,10 @@ import { JwtModule } from '@nestjs/jwt';
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' },
+    }),
+    MulterModule.register({
+      // 👈 This now has the correct reference
+      storage: memoryStorage(),
     }),
   ],
   controllers: [AuthController],

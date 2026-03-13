@@ -176,4 +176,10 @@ export class AuthController {
       throw error;
     }
   }
+
+  @Get('test-cloudinary')
+  async testCloudinary() {
+    this.logger.log('--- [ePRX_UV1] MANUAL_CLOUDINARY_HANDSHAKE_INITIATED ---');
+    return this.authService.checkCloudinaryConnection();
+  }
 }

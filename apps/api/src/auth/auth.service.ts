@@ -254,4 +254,17 @@ export class AuthService {
 
     return { status: 'PASSWORD_REGENERATED' };
   }
+
+  async checkCloudinaryConnection() {
+    try {
+      // This calls the Cloudinary API to get folder info
+      const result = await cloudinary.api.root_folders();
+      return { status: 'CONNECTED', result };
+    } catch (error) {
+      console.error('🔴 CLOUDINARY_AUTH_ERROR:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return { status: 'FAILED', error: errorMessage };
+    }
+  }
 }
