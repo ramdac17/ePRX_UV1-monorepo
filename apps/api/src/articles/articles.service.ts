@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 
 @Injectable()
@@ -60,7 +64,9 @@ export class ArticlesService {
       });
     } catch (error) {
       console.error('DATABASE_SAVE_ERROR:', error);
-      throw new InternalServerErrorException('FAILED_TO_SAVE_ARTICLE_TO_ARCHIVE');
+      throw new InternalServerErrorException(
+        'FAILED_TO_SAVE_ARTICLE_TO_ARCHIVE',
+      );
     }
   }
 
