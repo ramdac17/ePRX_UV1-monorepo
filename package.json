@@ -17,6 +17,8 @@
     "ios": "turbo run ios"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/sequelize": "^4.28.20",
     "prettier": "^3.7.4",
     "turbo": "^2.8.1",
     "typescript": "5.9.2"
