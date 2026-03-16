@@ -35,11 +35,13 @@ async function bootstrap() {
         origin.startsWith(allowed),
       );
       const isRailway = origin.endsWith('.railway.app');
+      const isVercel = origin.endsWith('.vercel.app'); // <--- ADD THIS
       const isLocalNetwork =
         origin.includes('192.168.') || origin.includes('10.0.');
 
       // 3. Single point of decision
-      if (isAllowed || isRailway || isLocalNetwork) {
+      if (isAllowed || isRailway || isVercel || isLocalNetwork) {
+        // <--- ADD isVercel HERE
         callback(null, true);
       } else {
         logger.error(`🚫 CORS_REJECTED_ORIGIN: ${origin}`);
@@ -100,7 +102,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const serverUrl = isProduction
-    ? `https://your-railway-url.railway.app`
+    ? `https://eprxuv1-monorepo-production.up.railway.app/`
     : `http://localhost:${port}`;
 
   logger.log(`🚀 ePRX UV1 Backend Uplink: ${serverUrl}/api`);
