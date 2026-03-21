@@ -17,6 +17,7 @@ export class EventsService {
         date: new Date(data.date),
         location: data.location,
         organizer: data.organizer,
+        eventUrl: data.link,
 
         // Contact Information
         firstName: data.firstName,
