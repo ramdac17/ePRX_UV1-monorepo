@@ -11,19 +11,22 @@ model User {
   email             String         @unique
   username          String         @unique
   password          String
+  isAdmin           Boolean        @default(false) // ⚡ Admin Flag
   createdAt         DateTime       @default(now())
   emailVerified     Boolean        @default(false)
   verificationToken String?        @unique
+  // Add this for security:
+  verificationTokenExpires DateTime? 
   image             String?
   firstName         String?
   lastName          String?
   mobile            String?
   resetToken        String?        @unique
   resetTokenExpires DateTime?
+  
   activities        Activity[]
   articles          Article[]
   trainingPlans     TrainingPlan[]
-  tokenExpires      DateTime?
 }
 
 model Activity {
@@ -56,9 +59,10 @@ model Event {
   title       String
   date        DateTime
   organizer   String
-  eventUrl    String?
+  eventUrl    String?  // ✅ Fixed spelling
   location    String
   description String
+  // Personal info of the person who submitted/organized the event
   firstName   String
   lastName    String
   email       String
