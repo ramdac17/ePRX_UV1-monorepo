@@ -19,14 +19,16 @@ export class MailService {
   // 2. Password Reset Method (Updated for Link flow) 🆕
   async sendPasswordResetEmail(email: string, token: string) {
     // Generate the full frontend URL with the token
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    const resetLink = `${baseUrl}/reset-password?token=${token}&email=${email}`;
 
     return this.dispatchMail(
       email,
       'PASSWORD RECOVERY REQUEST',
       resetLink,
       '#FF0055',
-      true, // isLink flag
+      true,
     );
   }
 
