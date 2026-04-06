@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma.service.js';
-import { UserService } from '../user/user.service.js';
-import { MailService } from '../mail/mail.service.js';
+import { PrismaService } from '../prisma.service';
+import { UserService } from '../user/user.service';
+import { MailService } from '../mail/mail.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto'; // 🆕 Added for secure token generation
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
