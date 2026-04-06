@@ -6,6 +6,7 @@
     "moduleResolution": "Node16",
     "target": "ES2022",
     "outDir": "../../dist/apps/api",
+
     "paths": {
       "@repo/types": ["../../packages/types/src"],
       "@/*": ["./src/*"]
