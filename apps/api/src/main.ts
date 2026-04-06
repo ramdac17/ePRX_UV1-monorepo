@@ -10,10 +10,10 @@ async function bootstrap() {
   const logger = new Logger('EPRX_BOOTSTRAP');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 🛰️ DYNAMIC CORS CONFIGURATION
   const isProduction = process.env.NODE_ENV === 'production';
   const envOrigins = process.env.ALLOWED_ORIGINS;
 
+  // 🛰️ DYNAMIC CORS CONFIGURATION
   const baseOrigins = envOrigins
     ? envOrigins.split(',')
     : [
@@ -25,45 +25,41 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // 1. Always allow non-browser requests or development mode
-      if (!origin || !isProduction) {
-        return callback(null, true);
-      }
+      // Allow non-browser requests (like Postman/Insomnia)
+      if (!origin) return callback(null, true);
 
-      // 2. Define permission logic
+      // In development, allow everything for easier debugging
+      if (!isProduction) return callback(null, true);
+
       const isAllowed = baseOrigins.some((allowed) =>
         origin.startsWith(allowed),
       );
       const isRailway = origin.endsWith('.railway.app');
-      const isVercel = origin.endsWith('.vercel.app'); // <--- ADD THIS
+      const isVercel = origin.endsWith('.vercel.app');
       const isLocalNetwork =
         origin.includes('192.168.') || origin.includes('10.0.');
 
-      // 3. Single point of decision
       if (isAllowed || isRailway || isVercel || isLocalNetwork) {
-        // <--- ADD isVercel HERE
         callback(null, true);
       } else {
         logger.error(`🚫 CORS_REJECTED_ORIGIN: ${origin}`);
-        callback(new Error('CORS_POLICY_VIOLATION'), false);
+        // Instead of throwing an Error (which can cause null status),
+        // we pass false to let the browser handle the rejection naturally.
+        callback(null, false);
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
+    preflightContinue: false,
     optionsSuccessStatus: 204,
   });
 
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 
-  /**
-   * 📂 STATIC ASSETS FIX:
-   * Serving from root-level /uploads folder
-   */
   const uploadPath = join(process.cwd(), 'uploads');
-  app.useStaticAssets(uploadPath, {
-    prefix: '/uploads',
-  });
+  app.useStaticAssets(uploadPath, { prefix: '/uploads' });
 
   app.setGlobalPrefix('api');
 
@@ -81,14 +77,7 @@ async function bootstrap() {
     .setDescription('Mission-critical authentication and profile management')
     .setVersion('1.0')
     .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'JWT-auth',
     )
     .build();
@@ -96,17 +85,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
-  const port = process.env.PORT || 3001; // Changed default to 3001 to avoid Next.js conflict
+  const port = process.env.PORT || 3001;
 
-  // 🌍 Listen on 0.0.0.0 is mandatory for Railway visibility
+  // 🌍 0.0.0.0 is mandatory for Railway
   await app.listen(port, '0.0.0.0');
 
-  const serverUrl = isProduction
-    ? `https://eprxuv1-monorepo-production.up.railway.app/`
-    : `http://localhost:${port}`;
-
-  logger.log(`🚀 ePRX UV1 Backend Uplink: ${serverUrl}/api`);
-  logger.log(`📑 API Documentation: ${serverUrl}/swagger`);
+  logger.log(`🚀 ePRX UV1 Backend Uplink Active on Port ${port}`);
 }
 
 bootstrap();

@@ -1,13 +1,15 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "rootDir": "../../",
+    "ignoreDeprecations": "6.0",
     "module": "Node16",
     "moduleResolution": "Node16",
     "target": "ES2022",
     "outDir": "../../dist/apps/api",
     "baseUrl": "./",
     "paths": {
-      "@repo/types": ["../../packages/types/src"] 
+      "@repo/types": ["../../packages/types/src"]
     },
     "types": ["node", "jest"],
     "esModuleInterop": true,
@@ -21,11 +23,13 @@
     "noEmit": false,
     "isolatedModules": true,
     "strict": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "rootDirs": [".", "../../packages/types/src"]
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.ts"
+    "test/**/*.ts",
+    "../../packages/types/src/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
