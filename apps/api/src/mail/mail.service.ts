@@ -42,7 +42,7 @@ export class MailService {
     const payload = {
       sender: { name: 'PRX UV', email: process.env.GMAIL_USER },
       to: [{ email: email }],
-      subject: `[PRX UV] ${subject}`,
+      subject: `PRX UV ${subject}`,
       htmlContent: `
         <div style="background: #000; color: #fff; padding: 40px; font-family: 'Courier New', Courier, monospace; border: 1px solid #222; max-width: 600px; margin: auto;">
           <h2 style="color: ${color}; letter-spacing: 2px; border-bottom: 1px solid ${color}; padding-bottom: 10px;">${subject}</h2>
@@ -77,6 +77,9 @@ export class MailService {
 
           <p style="font-size: 10px; color: #444; margin-top: 40px; border-top: 1px solid #111; pt-10px;">
             DISPATCH ID: ${Math.random().toString(36).substring(7).toUpperCase()} || SYSTEM AUTO GEN. PLEASE DO NOT REPLY TO THIS EMAIL.
+            <br/>
+            <br/>
+            © 2026 PRX UV. ALL RIGHTS RESERVED.
           </p>
         </div>
       `,
@@ -98,7 +101,7 @@ export class MailService {
         throw new Error(errorData.message || 'BREVO_API_ERROR');
       }
 
-      this.logger.log(`[ePRX_UV1] MAIL DISPATCHED: ${subject} -> ${email}`);
+      this.logger.log(`[ PRX UV] MAIL DISPATCHED: ${subject} -> ${email}`);
     } catch (error: any) {
       this.logger.error(`[PRX UV] MAIL DISPATCH FAILURE: ${error.message}`);
       throw error;
