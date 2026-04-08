@@ -12,7 +12,7 @@ export class ResetPasswordDto {
   })
   @IsString()
   @IsNotEmpty()
-  otp!: string;
+  token!: string; // 🆕 Change 'otp' to 'token'
 
   @ApiProperty({
     example: 'newSecurePassword123',
