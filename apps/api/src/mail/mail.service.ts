@@ -40,19 +40,19 @@ export class MailService {
     isLink: boolean,
   ) {
     const payload = {
-      sender: { name: 'ePRX UV1', email: process.env.GMAIL_USER },
+      sender: { name: 'PRX UV', email: process.env.GMAIL_USER },
       to: [{ email: email }],
-      subject: `[ePRX_UV1] ${subject}`,
+      subject: `[PRX UV] ${subject}`,
       htmlContent: `
         <div style="background: #000; color: #fff; padding: 40px; font-family: 'Courier New', Courier, monospace; border: 1px solid #222; max-width: 600px; margin: auto;">
           <h2 style="color: ${color}; letter-spacing: 2px; border-bottom: 1px solid ${color}; padding-bottom: 10px;">${subject}</h2>
           
-          <p style="color: #888; font-size: 12px; margin-top: 20px;">TARGET_ACCOUNT: <span style="color: #fff;">${email}</span></p>
+          <p style="color: #888; font-size: 12px; margin-top: 20px;">TARGET ACCOUNT: <span style="color: #fff;">${email}</span></p>
           
           <p style="font-size: 14px; line-height: 1.6; color: #ccc;">
             ${
               isLink
-                ? 'A secure authentication bridge has been established. Click the button below to initialize credential override.'
+                ? 'A secure authentication email has been sent. Click the button below to reset your password.'
                 : 'Enter the following bypass code to verify your identity.'
             }
           </p>
@@ -62,7 +62,7 @@ export class MailService {
               isLink
                 ? `
               <a href="${content}" style="background: ${color}; color: #000; padding: 15px 25px; text-decoration: none; font-weight: bold; font-size: 14px; letter-spacing: 2px; display: inline-block;">
-                INITIALIZE_RESET →
+                INITIALIZE RESET →
               </a>
             `
                 : `
@@ -73,10 +73,10 @@ export class MailService {
             }
           </div>
 
-          ${isLink ? `<p style="font-size: 11px; color: #444;">If the button doesn't work, copy-paste this uplink: <br/> ${content}</p>` : ''}
+          ${isLink ? `<p style="font-size: 11px; color: #444;">If the button doesn't work, copy-paste this url: <br/> ${content}</p>` : ''}
 
           <p style="font-size: 10px; color: #444; margin-top: 40px; border-top: 1px solid #111; pt-10px;">
-            DISPATCH_ID: ${Math.random().toString(36).substring(7).toUpperCase()} // SYSTEM_AUTO_GEN
+            DISPATCH ID: ${Math.random().toString(36).substring(7).toUpperCase()} || SYSTEM AUTO GEN. PLEASE DO NOT REPLY TO THIS EMAIL.
           </p>
         </div>
       `,
@@ -98,9 +98,9 @@ export class MailService {
         throw new Error(errorData.message || 'BREVO_API_ERROR');
       }
 
-      this.logger.log(`[ePRX_UV1] MAIL_DISPATCHED: ${subject} -> ${email}`);
+      this.logger.log(`[ePRX_UV1] MAIL DISPATCHED: ${subject} -> ${email}`);
     } catch (error: any) {
-      this.logger.error(`[ePRX_UV1] MAIL_DISPATCH_FAILURE: ${error.message}`);
+      this.logger.error(`[PRX UV] MAIL DISPATCH FAILURE: ${error.message}`);
       throw error;
     }
   }
