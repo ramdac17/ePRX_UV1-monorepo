@@ -7,8 +7,8 @@ export class ResetPasswordDto {
   email!: string;
 
   @ApiProperty({
-    example: '123456',
-    description: 'The 6-digit OTP sent to email',
+    example: '12345678',
+    description: 'The secure hex token sent via the recovery uplink',
   })
   @IsString()
   @IsNotEmpty()
@@ -16,9 +16,9 @@ export class ResetPasswordDto {
 
   @ApiProperty({
     example: 'newSecurePassword123',
-    description: 'Minimum 6 characters',
+    description: 'Minimum 8 characters for enhanced security',
   })
   @IsString()
-  @MinLength(6, { message: 'PASSWORD_TOO_SHORT_MIN_6' })
+  @MinLength(8, { message: 'PASSWORD TOO SHORT MIN 8' })
   newPassword!: string;
 }
