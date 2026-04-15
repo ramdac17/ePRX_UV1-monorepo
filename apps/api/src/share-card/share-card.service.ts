@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
-import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
 
 @Injectable()
 export class ShareCardService {
@@ -44,7 +43,7 @@ export class ShareCardService {
   }
 
   // ===============================
-  // 🔥 SHARE IMAGE GENERATOR (FIXED)
+  // SHARE IMAGE GENERATOR
   // ===============================
   async generateShareImage(data: {
     distance: number;
@@ -67,60 +66,57 @@ export class ShareCardService {
 
     const page = await browser.newPage();
 
-    const html = `
-      <html>
-        <body style="
-          margin:0;
-          background: radial-gradient(circle at top, #0ff, #000);
-          color:#00fff2;
-          font-family: Arial, sans-serif;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          height:100vh;
-          text-align:center;
-        ">
-          <h1 style="font-size:48px;">ePRX MISSION</h1>
-          <h2 style="font-size:64px;margin:0;">
-            ${Number(data.distance).toFixed(2)} KM
-          </h2>
-          <p style="font-size:24px;">
-            Pace: ${data.pace}
-          </p>
-        </body>
-      </html>
-    `;
+    try {
+      const html = `
+        <html>
+          <body style="
+            margin:0;
+            background: radial-gradient(circle at top, #0ff, #000);
+            color:#00fff2;
+            font-family: Arial, sans-serif;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            height:100vh;
+            text-align:center;
+          ">
+            <h1 style="font-size:48px;">ePRX MISSION</h1>
+            <h2 style="font-size:64px;margin:0;">
+              ${Number(data.distance).toFixed(2)} KM
+            </h2>
+            <p style="font-size:24px;">
+              Pace: ${data.pace}
+            </p>
+          </body>
+        </html>
+      `;
 
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    await browser.close();
+      // ✅ screenshot BEFORE closing browser
+      const screenshot = await page.screenshot({ type: 'png' });
 
-    // ===============================
-    // ☁️ CLOUDINARY (PROPER STREAM UPLOAD)
-    // ===============================
-    const screenshot = await page.screenshot({ type: 'png' });
+      const buffer: Buffer = Buffer.isBuffer(screenshot)
+        ? screenshot
+        : Buffer.from(screenshot);
 
-    const buffer: Buffer = Buffer.isBuffer(screenshot)
-      ? screenshot
-      : Buffer.from(screenshot);
+      const imageUrl = await this.cloudinary.uploadShareCard(
+        buffer,
+        data.activityId,
+      );
 
-    const imageUrl = await this.cloudinary.uploadShareCard(
-      buffer,
-      data.activityId,
-    );
+      await this.prisma.activity.update({
+        where: { id: data.activityId },
+        data: {
+          shareImageUrl: imageUrl,
+        },
+      });
 
-    // ===============================
-    // 💾 SAVE TO DATABASE
-    // ===============================
-    await this.prisma.activity.update({
-      where: { id: data.activityId },
-      data: {
-        shareImageUrl: imageUrl,
-      },
-    });
-
-    return imageUrl;
+      return imageUrl;
+    } finally {
+      await browser.close();
+    }
   }
 
   // ===============================
