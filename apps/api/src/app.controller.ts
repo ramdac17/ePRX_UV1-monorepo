@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
-import { AppService } from './app.service.js';
-import { PrismaService } from './prisma.service.js';
+import { AppService } from './app.service';
+import { PrismaService } from './prisma.service';
 import type { CreateFeedbackDto } from '@repo/types';
 
 @Controller('status')
@@ -20,7 +20,7 @@ export class AppController {
     return '📡 ePRX_UV1_UPLINK_ESTABLISHED: SYSTEM_STATUS_OPTIMAL';
   }
 
-  @Get()
+  @Get('status')
   getStatus() {
     return {
       data: { version: '1.0.0' },
@@ -31,7 +31,6 @@ export class AppController {
 
   @Post('feedback')
   async receiveFeedback(@Body() dto: CreateFeedbackDto) {
-    console.log('Saving to Postgres...', dto);
     const result = await this.prismaService.feedback.create({
       data: {
         name: dto.name,

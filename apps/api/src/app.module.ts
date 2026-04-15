@@ -1,22 +1,19 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
-import { PrismaModule } from './prisma.module.js';
-import { AuthModule } from './auth/auth.module.js';
-import { ArticlesModule } from './articles/articles.module.js';
-import { UserModule } from './user/user.module.js';
-import { MailModule } from './mail/mail.module.js';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { PrismaModule } from './prisma.module';
+import { AuthModule } from './auth/auth.module';
+import { ArticlesModule } from './articles/articles.module';
+import { UserModule } from './user/user.module';
+import { MailModule } from './mail/mail.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ConfigModule } from '@nestjs/config';
-import { EventsModule } from './events/events.module.js';
-import { ActivitiesModule } from './activities/activities.module.js';
-import { HealthController } from './health.controller.js';
-import { ShareCardModule } from './share-card/share-card.module.js';
+import { EventsModule } from './events/events.module';
+import { ActivitiesModule } from './activities/activities.module';
+import { HealthController } from './health.controller';
+import { ShareCardModule } from './share-card/share-card.module';
 
-@Module({
-  imports: [ShareCardModule],
-})
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -27,19 +24,13 @@ import { ShareCardModule } from './share-card/share-card.module.js';
       ],
     }),
 
-    /**
-     * 🛰️ ePRX UV1 Note:
-     * We are now using Cloudinary for User Avatars.
-     * ServeStaticModule is kept here only for legacy support or non-cloud assets.
-     */
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-      // Wildcard fix for path-to-regexp v8 (NestJS 11)
       exclude: ['/api/(.*)'],
     }),
 
-    // Order matters slightly for initialization; keep core modules first
+    // Core modules (ORDER MATTERS FOR DI)
     PrismaModule,
     MailModule,
     UserModule,
@@ -47,6 +38,7 @@ import { ShareCardModule } from './share-card/share-card.module.js';
     EventsModule,
     ArticlesModule,
     ActivitiesModule,
+    ShareCardModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
