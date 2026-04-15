@@ -8,5 +8,6 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
   imports: [PrismaModule, CloudinaryModule],
   controllers: [ShareCardController],
   providers: [ShareCardService],
+  exports: [ShareCardService], // ✅ THIS IS REQUIRED
 })
 export class ShareCardModule {}
