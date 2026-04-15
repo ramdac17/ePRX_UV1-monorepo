@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
-import { CloudinaryService } from '../common/cloudinary.service.js';
+import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
 
 @Injectable()
 export class ShareCardService {
