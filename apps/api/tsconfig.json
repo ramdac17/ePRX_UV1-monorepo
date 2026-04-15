@@ -3,10 +3,11 @@
   "compilerOptions": {
     "rootDir": "../../",
     "outDir": "../../dist/apps/api",
-
+    "ignoreDeprecations": "6.0",
     "module": "Node16",
     "moduleResolution": "Node16",
     "target": "ES2022",
+
     "baseUrl": ".",
     "paths": {
       "@repo/types": ["../../packages/types/src"],
