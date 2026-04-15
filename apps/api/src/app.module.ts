@@ -12,7 +12,11 @@ import { ConfigModule } from '@nestjs/config';
 import { EventsModule } from './events/events.module.js';
 import { ActivitiesModule } from './activities/activities.module.js';
 import { HealthController } from './health.controller.js';
+import { ShareCardModule } from './share-card/share-card.module.js';
 
+@Module({
+  imports: [ShareCardModule],
+})
 @Module({
   imports: [
     ConfigModule.forRoot({

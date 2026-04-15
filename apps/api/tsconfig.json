@@ -2,28 +2,35 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "../../",
+    "outDir": "../../dist/apps/api",
+
     "module": "Node16",
     "moduleResolution": "Node16",
     "target": "ES2022",
-    "outDir": "../../dist/apps/api",
-
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
     "paths": {
       "@repo/types": ["../../packages/types/src"],
       "@/*": ["./src/*"]
     },
-    "types": ["node", "jest"],
+
+    "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+
     "incremental": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "declaration": true,
     "noEmit": false,
-    "isolatedModules": true,
+
+    "isolatedModules": false,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
+
     "rootDirs": [".", "../../packages/types/src"]
   },
   "include": [
