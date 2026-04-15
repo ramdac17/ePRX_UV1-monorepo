@@ -7,26 +7,24 @@ datasource db {
 }
 
 model User {
-  id                String         @id @default(cuid())
-  email             String         @unique
-  username          String         @unique
-  password          String
-  isAdmin           Boolean        @default(false) // ⚡ Admin Flag
-  createdAt         DateTime       @default(now())
-  emailVerified     Boolean        @default(false)
-  verificationToken String?        @unique
-  // Add this for security:
-  verificationTokenExpires DateTime? 
-  image             String?
-  firstName         String?
-  lastName          String?
-  mobile            String?
-  resetToken        String?        @unique
-  resetTokenExpires DateTime?
-  
-  activities        Activity[]
-  articles          Article[]
-  trainingPlans     TrainingPlan[]
+  id                       String         @id @default(cuid())
+  email                    String         @unique
+  username                 String         @unique
+  password                 String
+  createdAt                DateTime       @default(now())
+  emailVerified            Boolean        @default(false)
+  verificationToken        String?        @unique
+  image                    String?
+  firstName                String?
+  lastName                 String?
+  mobile                   String?
+  resetToken               String?        @unique
+  resetTokenExpires        DateTime?
+  isAdmin                  Boolean        @default(false)
+  verificationTokenExpires DateTime?
+  activities               Activity[]
+  articles                 Article[]
+  trainingPlans            TrainingPlan[]
 }
 
 model Activity {
@@ -41,6 +39,8 @@ model Activity {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
+  mapImageUrl   String?
+  shareImageUrl String?
 }
 
 model Article {
@@ -59,16 +59,15 @@ model Event {
   title       String
   date        DateTime
   organizer   String
-  eventUrl    String?  // ✅ Fixed spelling
   location    String
   description String
-  // Personal info of the person who submitted/organized the event
   firstName   String
   lastName    String
   email       String
   mobile      String
-  image       String?
   createdAt   DateTime @default(now())
+  image       String?
+  eventUrl    String?
 }
 
 model TrainingPlan {
