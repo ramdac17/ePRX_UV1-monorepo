@@ -7,10 +7,13 @@ export class ShareCardController {
   constructor(private readonly shareCardService: ShareCardService) {}
 
   @Get('activity/:id')
-  async getActivitySharePage(@Param('id') id: string, @Res() res: Response) {
+  async getOGPage(@Param('id') id: string, @Res() res: Response) {
     const html = await this.shareCardService.generateOGPage(id);
 
-    res.setHeader('Content-Type', 'text/html');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=600'); // 10 min cache
+
     return res.send(html);
   }
 }
