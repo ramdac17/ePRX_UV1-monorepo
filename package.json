@@ -11,7 +11,7 @@
     "build": "turbo run build",
     "build:api": "turbo run build --filter=api",
     "sync-ip": "node scripts/update-ip.js",
-    "postinstall": "prisma generate --schema=apps/api/prisma/schema.prisma",
+    "postinstall": "pnpm --filter api prisma generate",
     "start:railway": "npx prisma migrate deploy && node dist/apps/api/main.js",
     "android": "turbo run android",
     "ios": "turbo run ios"
