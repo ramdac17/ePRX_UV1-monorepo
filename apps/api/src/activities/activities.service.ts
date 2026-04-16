@@ -74,21 +74,18 @@ export class ActivitiesService {
   // ===============================
   private async generateShareCardAsync(activity: any) {
     try {
-      const imageUrl = await this.shareCardService.generateShareImage({
-        activityId: activity.id, // ✅ FIXED
+      // The Service already:
+      // 1. Launches Puppeteer
+      // 2. Uploads to Cloudinary
+      // 3. Updates the Activity table with the new URL
+      await this.shareCardService.generateShareImage({
+        activityId: activity.id,
         distance: activity.distance,
         pace: activity.pace,
         duration: activity.duration,
       });
 
-      await this.prisma.activity.update({
-        where: { id: activity.id },
-        data: {
-          shareImageUrl: imageUrl,
-        },
-      });
-
-      this.logger.log(`SHARE_CARD_GENERATED: ${activity.id} → ${imageUrl}`);
+      this.logger.log(`SHARE_CARD_PROCESS_COMPLETE: ${activity.id}`);
     } catch (error) {
       this.logger.error(`SHARE_CARD_FAILED: ${activity.id}`, error);
     }
