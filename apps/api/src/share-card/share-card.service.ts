@@ -16,7 +16,7 @@ export class ShareCardService {
   ) {}
 
   // =====================================================
-  // OG PAGE (Facebook-safe, deterministic)
+  // OG PAGE (Deterministic Meta Tags)
   // =====================================================
   async generateOGPage(id: string): Promise<string> {
     try {
@@ -25,17 +25,15 @@ export class ShareCardService {
       });
 
       const fallbackImage = `${process.env.BACKEND_URL}/default-share.png`;
-
       const distance = this.formatDistance(activity?.distance);
       const duration = activity?.duration ?? 0;
       const pace = activity?.pace ?? '0:00';
 
       const title = `ePRX Mission Log - ${distance} KM`;
       const description = `Time: ${duration}s • Pace: ${pace}`;
-
       const image = this.resolveOgImage(activity, fallbackImage);
 
-      // IMPORTANT: cache bust OG PAGE, NOT image
+      // Cache-busting for social scrapers
       const url = `${process.env.BACKEND_URL}/share/activity/${id}?v=${Date.now()}`;
 
       return this.renderOGHtml({
@@ -52,7 +50,7 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // SHARE IMAGE GENERATOR (Satori + Resvg Powered)
+  // SHARE IMAGE GENERATOR (Puppeteer-Free)
   // =====================================================
   async generateShareImage(data: {
     distance: number;
@@ -61,12 +59,18 @@ export class ShareCardService {
     duration?: number;
   }): Promise<string> {
     try {
-      // 1. Load Font Buffer (Satori requirement)
-      // Path: apps/backend/public/fonts/Inter-Bold.ttf
+      // 1. Font Resolution (Relative to the app root)
       const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter-Bold.ttf');
+
+      if (!fs.existsSync(fontPath)) {
+        throw new Error(
+          `Font not found at ${fontPath}. Ensure fonts are in apps/api/public/fonts/`,
+        );
+      }
+
       const fontData = fs.readFileSync(fontPath);
 
-      // 2. Build Image with Satori (SVG)
+      // 2. SVG Generation via Satori
       const svg = await satori(
         {
           type: 'div',
@@ -126,27 +130,25 @@ export class ShareCardService {
         },
       );
 
-      // 3. Convert SVG to PNG
+      // 3. PNG Conversion via Resvg
       const resvg = new Resvg(svg, {
         background: 'rgba(0,0,0,1)',
         fitTo: { mode: 'width', value: 1080 },
       });
-      const pngData = resvg.render();
-      const pngBuffer = pngData.asPng();
+      const pngBuffer = resvg.render().asPng();
 
-      // 4. Upload to Cloudinary
+      // 4. Cloudinary Upload & DB Update
       const imageUrl = await this.cloudinary.uploadShareCard(
         pngBuffer,
         data.activityId,
       );
 
-      // 5. Save URL to Database
       await this.prisma.activity.update({
         where: { id: data.activityId },
         data: { shareImageUrl: imageUrl },
       });
 
-      this.logger.log(`Share image updated in DB: ${imageUrl}`);
+      this.logger.log(`Share image successfully generated: ${imageUrl}`);
       return imageUrl;
     } catch (err) {
       this.logger.error('SATORI_GENERATION_FAILED', err);
@@ -155,8 +157,9 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // OG HTML (Facebook-optimized)
+  // HTML RENDERERS & HELPERS
   // =====================================================
+
   private renderOGHtml({ title, description, image, url, distance }: any) {
     const safeTitle = this.escapeHtml(title);
     const safeDesc = this.escapeHtml(description);
@@ -167,20 +170,15 @@ export class ShareCardService {
 <head>
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
-
   <meta property="og:type" content="article" /> 
   <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
-  
   <meta property="og:image" content="${image}" />
   <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-
   <meta property="og:site_name" content="ePRX UV1" />
-
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
   </style>
@@ -191,39 +189,19 @@ export class ShareCardService {
     <p>${distance} KM COMPLETED</p>
   </div>
 </body>
-</html>
-  `;
+</html>`;
   }
 
-  // =====================================================
-  // FALLBACK OG
-  // =====================================================
   private renderFallbackOG(): string {
     const fallback = `${process.env.BACKEND_URL}/default-share.png`;
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta property="og:title" content="ePRX Mission Log" />
-  <meta property="og:description" content="Run tracking achievement" />
-  <meta property="og:image" content="${fallback}" />
-  <meta property="og:type" content="website" />
-  <title>ePRX Mission Log</title>
-</head>
-<body><h1>ePRX Mission Log</h1></body>
-</html>
-    `;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8" /><meta property="og:image" content="${fallback}" /><title>ePRX Mission Log</title></head><body><h1>ePRX Mission Log</h1></body></html>`;
   }
 
-  // =====================================================
-  // HELPERS
-  // =====================================================
   private resolveOgImage(activity: any, fallback: string): string {
     const image = activity?.shareImageUrl || activity?.mapImageUrl || fallback;
-    if (!image || typeof image !== 'string') return fallback;
-    return image.startsWith('http') ? image : fallback;
+    return typeof image === 'string' && image.startsWith('http')
+      ? image
+      : fallback;
   }
 
   private formatDistance(distance?: number): string {
@@ -231,11 +209,16 @@ export class ShareCardService {
   }
 
   private escapeHtml(str: string = ''): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    return str.replace(
+      /[&<>"']/g,
+      (m) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[m]!,
+    );
   }
 }
