@@ -15,27 +15,6 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 
-# ==== Linux libs =====
-
-RUN apt-get update && apt-get install -y \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxfixes3 \
-    libxext6 \
-    libxrender1 \
-    libnspr4 \
-    && rm -rf /var/lib/apt/lists/*
 
 # ===== Install dependencies =====
 RUN pnpm install --frozen-lockfile
