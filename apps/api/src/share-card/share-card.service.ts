@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 
 @Injectable()
 export class ShareCardService {
+  private readonly logger = new Logger('ShareCardService');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
@@ -26,8 +28,27 @@ export class ShareCardService {
     const title = `ePRX Mission Log - ${distance} KM`;
     const description = `Time: ${duration}s • Pace: ${pace}`;
 
-    const image =
-      activity.shareImageUrl ||
+    // 🔥 AUTO-GENERATE IMAGE IF MISSING (prevents blank FB shares)
+    let image = activity.shareImageUrl;
+
+    if (!image) {
+      try {
+        this.logger.log(`Generating OG image for activity ${id}...`);
+
+        image = await this.generateShareImage({
+          distance: activity.distance,
+          pace: activity.pace,
+          duration: activity.duration,
+          activityId: activity.id,
+        });
+      } catch (err) {
+        this.logger.error('OG_IMAGE_GENERATION_FAILED', err);
+      }
+    }
+
+    // 🔒 FINAL FALLBACK
+    image =
+      image ||
       activity.mapImageUrl ||
       `${process.env.BACKEND_URL}/default-share.png`;
 
@@ -55,8 +76,12 @@ export class ShareCardService {
     const puppeteer = (await import('puppeteer-core')).default;
 
     const browser = await puppeteer.launch({
-      args: chromium.default.args,
-      executablePath: await chromium.default.executablePath(),
+      args: [
+        ...chromium.default.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+      ],
+      executablePath: (await chromium.default.executablePath()) || undefined,
       headless: true,
       defaultViewport: {
         width: 1080,
@@ -94,18 +119,19 @@ export class ShareCardService {
 
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
-      // ✅ screenshot BEFORE closing browser
       const screenshot = await page.screenshot({ type: 'png' });
 
       const buffer: Buffer = Buffer.isBuffer(screenshot)
         ? screenshot
         : Buffer.from(screenshot);
 
+      // ☁️ Upload to Cloudinary
       const imageUrl = await this.cloudinary.uploadShareCard(
         buffer,
         data.activityId,
       );
 
+      // 💾 Persist to DB
       await this.prisma.activity.update({
         where: { id: data.activityId },
         data: {
@@ -113,7 +139,12 @@ export class ShareCardService {
         },
       });
 
+      this.logger.log(`Share image uploaded: ${imageUrl}`);
+
       return imageUrl;
+    } catch (err) {
+      this.logger.error('SHARE_IMAGE_GENERATION_FAILED', err);
+      throw err;
     } finally {
       await browser.close();
     }
@@ -135,24 +166,31 @@ export class ShareCardService {
     url: string;
     distance: string;
   }) {
+    const safeTitle = title.replace(/"/g, '');
+    const safeDescription = description.replace(/"/g, '');
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
 
-  <meta property="og:title" content="${title?.replace(/"/g, '')}" />
-  <meta property="og:description" content="${description}" />
+  <!-- Open Graph -->
+  <meta property="og:title" content="${safeTitle}" />
+  <meta property="og:description" content="${safeDescription}" />
   <meta property="og:image" content="${image}" />
+  <meta property="og:image:width" content="1080" />
+  <meta property="og:image:height" content="1080" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${url}" />
 
+  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${title}" />
-  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:title" content="${safeTitle}" />
+  <meta name="twitter:description" content="${safeDescription}" />
   <meta name="twitter:image" content="${image}" />
 
-  <title>${title}</title>
+  <title>${safeTitle}</title>
 
   <style>
     body {
