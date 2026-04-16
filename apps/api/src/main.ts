@@ -12,6 +12,7 @@ async function bootstrap() {
 
   const isProduction = process.env.NODE_ENV === 'production';
   const envOrigins = process.env.ALLOWED_ORIGINS;
+  const publicPath = join(process.cwd(), 'public');
 
   // 🛰️ DYNAMIC CORS CONFIGURATION
   const baseOrigins = envOrigins
@@ -85,8 +86,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
-  app.useStaticAssets(join(__dirname, '..', 'public'), {
-    prefix: '/', // This means https://your-api.com/default-share.png works
+  app.useStaticAssets(publicPath, {
+    prefix: '/', // Files will be at the root: /default-share.png
   });
 
   const port = process.env.PORT || 3001;
