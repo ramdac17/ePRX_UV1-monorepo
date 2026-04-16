@@ -12,7 +12,7 @@ export class ShareCardService {
   ) {}
 
   // =====================================================
-  // OG PAGE (Facebook-safe, deterministic, no crashes)
+  // OG PAGE (Facebook-safe, deterministic)
   // =====================================================
   async generateOGPage(id: string): Promise<string> {
     try {
@@ -22,28 +22,27 @@ export class ShareCardService {
 
       const fallbackImage = `${process.env.BACKEND_URL}/default-share.png`;
 
-      const safeDistance = this.formatDistance(activity?.distance);
-      const safeDuration = activity?.duration ?? 0;
-      const safePace = activity?.pace ?? '0:00';
+      const distance = this.formatDistance(activity?.distance);
+      const duration = activity?.duration ?? 0;
+      const pace = activity?.pace ?? '0:00';
 
-      const title = `ePRX Mission Log - ${safeDistance} KM`;
-      const description = `Time: ${safeDuration}s • Pace: ${safePace}`;
+      const title = `ePRX Mission Log - ${distance} KM`;
+      const description = `Time: ${duration}s • Pace: ${pace}`;
 
       const image = this.resolveOgImage(activity, fallbackImage);
 
-      const url = `${process.env.BACKEND_URL}/share/activity/${id}`;
+      // IMPORTANT: cache bust OG PAGE, NOT image
+      const url = `${process.env.BACKEND_URL}/share/activity/${id}?v=${Date.now()}`;
 
       return this.renderOGHtml({
         title,
         description,
         image,
         url,
-        distance: safeDistance,
+        distance,
       });
     } catch (err) {
       this.logger.error(`OG_PAGE_FAILED: ${id}`, err);
-
-      // NEVER fail Facebook scraping
       return this.renderFallbackOG();
     }
   }
@@ -79,9 +78,9 @@ export class ShareCardService {
 
       const page = await browser.newPage();
 
-      const html = this.buildShareImageHtml(data);
-
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(this.buildShareImageHtml(data), {
+        waitUntil: 'networkidle0',
+      });
 
       const screenshot = await page.screenshot({ type: 'png' });
 
@@ -113,7 +112,7 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // IMAGE HTML (isolated builder)
+  // IMAGE HTML
   // =====================================================
   private buildShareImageHtml(data: { distance: number; pace: string }) {
     return `
@@ -132,10 +131,10 @@ export class ShareCardService {
         ">
           <h1 style="font-size:48px;">ePRX MISSION</h1>
           <h2 style="font-size:64px;margin:0;">
-            ${Number(data.distance).toFixed(2)} KM
+            ${Number(data.distance || 0).toFixed(2)} KM
           </h2>
           <p style="font-size:24px;">
-            Pace: ${data.pace}
+            Pace: ${data.pace ?? '0:00'}
           </p>
         </body>
       </html>
@@ -143,7 +142,7 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // OG HTML (Facebook-safe output)
+  // OG HTML (Facebook-optimized)
   // =====================================================
   private renderOGHtml({
     title,
@@ -158,28 +157,35 @@ export class ShareCardService {
     url: string;
     distance: string;
   }) {
+    const safeTitle = this.escapeHtml(title);
+    const safeDesc = this.escapeHtml(description);
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
 
+  <!-- CORE OG -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${url}" />
-  <meta property="og:title" content="${this.escapeHtml(title)}" />
-  <meta property="og:description" content="${this.escapeHtml(description)}" />
+  <meta property="og:title" content="${safeTitle}" />
+  <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
+  <meta property="og:image:secure_url" content="${image}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="ePRX UV1" />
 
+  <!-- TWITTER -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${this.escapeHtml(title)}" />
-  <meta name="twitter:description" content="${this.escapeHtml(description)}" />
+  <meta name="twitter:title" content="${safeTitle}" />
+  <meta name="twitter:description" content="${safeDesc}" />
   <meta name="twitter:image" content="${image}" />
 
-  <title>${this.escapeHtml(title)}</title>
+  <title>${safeTitle}</title>
 
-  <meta http-equiv="Cache-Control" content="public, max-age=600" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 
   <style>
     body {
@@ -207,9 +213,11 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // SAFE FALLBACK (CRITICAL FOR FACEBOOK)
+  // FALLBACK OG (ALWAYS SAFE FOR FACEBOOK)
   // =====================================================
   private renderFallbackOG(): string {
+    const fallback = `${process.env.BACKEND_URL}/default-share.png`;
+
     return `
 <!DOCTYPE html>
 <html>
@@ -218,7 +226,7 @@ export class ShareCardService {
 
   <meta property="og:title" content="ePRX Mission Log" />
   <meta property="og:description" content="Run tracking achievement" />
-  <meta property="og:image" content="${process.env.BACKEND_URL}/default-share.png" />
+  <meta property="og:image" content="${fallback}" />
   <meta property="og:type" content="website" />
 
   <title>ePRX Mission Log</title>
@@ -234,30 +242,25 @@ export class ShareCardService {
   // HELPERS
   // =====================================================
   private resolveOgImage(activity: any, fallback: string): string {
-    return activity?.shareImageUrl || activity?.mapImageUrl || fallback;
+    const image = activity?.shareImageUrl || activity?.mapImageUrl || fallback;
+
+    if (!image || typeof image !== 'string') {
+      return fallback;
+    }
+
+    return image.startsWith('http') ? image : fallback;
   }
 
   private formatDistance(distance?: number): string {
     return distance ? Number(distance).toFixed(2) : '0.00';
   }
 
-  private escapeHtml(str: string): string {
+  private escapeHtml(str: string = ''): string {
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
-  }
-
-  private renderNotFound() {
-    return `
-      <html>
-        <head><title>Not found</title></head>
-        <body style="background:#000;color:#fff;text-align:center;margin-top:50px;">
-          <h1>Activity not found</h1>
-        </body>
-      </html>
-    `;
   }
 }
