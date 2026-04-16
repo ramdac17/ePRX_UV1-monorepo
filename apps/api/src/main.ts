@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { AppModule } from './app.module'; // Removed .js for standard TS resolution
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
@@ -8,11 +8,16 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('EPRX_BOOTSTRAP');
+
+  // Explicitly typing as NestExpressApplication solves most 'app.use' red lines
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const isProduction = process.env.NODE_ENV === 'production';
   const envOrigins = process.env.ALLOWED_ORIGINS;
+
+  // Paths
   const publicPath = join(process.cwd(), 'public');
+  const uploadPath = join(process.cwd(), 'uploads');
 
   // 🛰️ DYNAMIC CORS CONFIGURATION
   const baseOrigins = envOrigins
@@ -26,11 +31,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow non-browser requests (like Postman/Insomnia)
-      if (!origin) return callback(null, true);
-
-      // In development, allow everything for easier debugging
-      if (!isProduction) return callback(null, true);
+      if (!origin || !isProduction) return callback(null, true);
 
       const isAllowed = baseOrigins.some((allowed) =>
         origin.startsWith(allowed),
@@ -44,8 +45,6 @@ async function bootstrap() {
         callback(null, true);
       } else {
         logger.error(`🚫 CORS_REJECTED_ORIGIN: ${origin}`);
-        // Instead of throwing an Error (which can cause null status),
-        // we pass false to let the browser handle the rejection naturally.
         callback(null, false);
       }
     },
@@ -56,11 +55,13 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
+  // Body Parsing
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
 
-  const uploadPath = join(process.cwd(), 'uploads');
+  // Static Assets (Consolidated)
   app.useStaticAssets(uploadPath, { prefix: '/uploads' });
+  app.useStaticAssets(publicPath, { prefix: '/' });
 
   app.setGlobalPrefix('api');
 
@@ -85,10 +86,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
-
-  app.useStaticAssets(publicPath, {
-    prefix: '/', // Files will be at the root: /default-share.png
-  });
 
   const port = process.env.PORT || 3001;
 

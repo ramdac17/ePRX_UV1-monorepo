@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
+import satori from 'satori';
+import { Resvg } from '@resvg/resvg-js';
+import { join } from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class ShareCardService {
@@ -48,97 +52,106 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // SHARE IMAGE GENERATOR (Cloudinary-backed)
+  // SHARE IMAGE GENERATOR (Satori + Resvg Powered)
   // =====================================================
   async generateShareImage(data: {
     distance: number;
     pace: string;
-    duration?: number;
     activityId: string;
+    duration?: number;
   }): Promise<string> {
-    const chromium = await import('@sparticuz/chromium');
-    const puppeteer = (await import('puppeteer-core')).default;
-
-    let browser;
-
     try {
-      browser = await puppeteer.launch({
-        args: [
-          ...chromium.default.args,
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-        ],
-        executablePath: (await chromium.default.executablePath()) || undefined,
-        headless: true,
-        defaultViewport: {
+      // 1. Load Font Buffer (Satori requirement)
+      // Path: apps/backend/public/fonts/Inter-Bold.ttf
+      const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter-Bold.ttf');
+      const fontData = fs.readFileSync(fontPath);
+
+      // 2. Build Image with Satori (SVG)
+      const svg = await satori(
+        {
+          type: 'div',
+          props: {
+            style: {
+              height: '100%',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'radial-gradient(circle at top, #00ffff, #000000)',
+              color: '#00fff2',
+              textAlign: 'center',
+              fontFamily: 'Inter',
+            },
+            children: [
+              {
+                type: 'h1',
+                props: {
+                  style: {
+                    fontSize: 50,
+                    marginBottom: 20,
+                    letterSpacing: '4px',
+                  },
+                  children: 'ePRX MISSION',
+                },
+              },
+              {
+                type: 'div',
+                props: {
+                  style: { fontSize: 110, fontWeight: 900, marginBottom: 10 },
+                  children: `${Number(data.distance || 0).toFixed(2)} KM`,
+                },
+              },
+              {
+                type: 'div',
+                props: {
+                  style: { fontSize: 35, opacity: 0.8 },
+                  children: `Pace: ${data.pace ?? '0:00'}`,
+                },
+              },
+            ],
+          },
+        } as any,
+        {
           width: 1080,
           height: 1080,
+          fonts: [
+            {
+              name: 'Inter',
+              data: fontData,
+              weight: 700,
+              style: 'normal',
+            },
+          ],
         },
+      );
+
+      // 3. Convert SVG to PNG
+      const resvg = new Resvg(svg, {
+        background: 'rgba(0,0,0,1)',
+        fitTo: { mode: 'width', value: 1080 },
       });
+      const pngData = resvg.render();
+      const pngBuffer = pngData.asPng();
 
-      const page = await browser.newPage();
-
-      await page.setContent(this.buildShareImageHtml(data), {
-        waitUntil: 'networkidle0',
-      });
-
-      const screenshot = await page.screenshot({ type: 'png' });
-
-      const buffer = Buffer.isBuffer(screenshot)
-        ? screenshot
-        : Buffer.from(screenshot);
-
+      // 4. Upload to Cloudinary
       const imageUrl = await this.cloudinary.uploadShareCard(
-        buffer,
+        pngBuffer,
         data.activityId,
       );
 
+      // 5. Save URL to Database
       await this.prisma.activity.update({
         where: { id: data.activityId },
-        data: {
-          shareImageUrl: imageUrl,
-        },
+        data: { shareImageUrl: imageUrl },
       });
 
-      this.logger.log(`Share image generated: ${imageUrl}`);
-
+      this.logger.log(`Share image updated in DB: ${imageUrl}`);
       return imageUrl;
     } catch (err) {
-      this.logger.error('SHARE_IMAGE_GENERATION_FAILED', err);
+      this.logger.error('SATORI_GENERATION_FAILED', err);
       throw err;
-    } finally {
-      if (browser) await browser.close();
     }
-  }
-
-  // =====================================================
-  // IMAGE HTML
-  // =====================================================
-  private buildShareImageHtml(data: { distance: number; pace: string }) {
-    return `
-      <html>
-        <body style="
-          margin:0;
-          background: radial-gradient(circle at top, #0ff, #000);
-          color:#00fff2;
-          font-family: Arial, sans-serif;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          height:100vh;
-          text-align:center;
-        ">
-          <h1 style="font-size:48px;">ePRX MISSION</h1>
-          <h2 style="font-size:64px;margin:0;">
-            ${Number(data.distance || 0).toFixed(2)} KM
-          </h2>
-          <p style="font-size:24px;">
-            Pace: ${data.pace ?? '0:00'}
-          </p>
-        </body>
-      </html>
-    `;
   }
 
   // =====================================================
@@ -155,7 +168,8 @@ export class ShareCardService {
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
 
-  <meta property="og:type" content="article" /> <meta property="og:url" content="${url}" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
   
@@ -166,7 +180,6 @@ export class ShareCardService {
   <meta property="og:image:height" content="630" />
 
   <meta property="og:site_name" content="ePRX UV1" />
-  <meta property="fb:app_id" content="YOUR_FB_APP_ID_IF_YOU_HAVE_ONE" />
 
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
@@ -183,7 +196,7 @@ export class ShareCardService {
   }
 
   // =====================================================
-  // FALLBACK OG (ALWAYS SAFE FOR FACEBOOK)
+  // FALLBACK OG
   // =====================================================
   private renderFallbackOG(): string {
     const fallback = `${process.env.BACKEND_URL}/default-share.png`;
@@ -193,17 +206,13 @@ export class ShareCardService {
 <html>
 <head>
   <meta charset="utf-8" />
-
   <meta property="og:title" content="ePRX Mission Log" />
   <meta property="og:description" content="Run tracking achievement" />
   <meta property="og:image" content="${fallback}" />
   <meta property="og:type" content="website" />
-
   <title>ePRX Mission Log</title>
 </head>
-<body>
-  <h1>ePRX Mission Log</h1>
-</body>
+<body><h1>ePRX Mission Log</h1></body>
 </html>
     `;
   }
@@ -213,11 +222,7 @@ export class ShareCardService {
   // =====================================================
   private resolveOgImage(activity: any, fallback: string): string {
     const image = activity?.shareImageUrl || activity?.mapImageUrl || fallback;
-
-    if (!image || typeof image !== 'string') {
-      return fallback;
-    }
-
+    if (!image || typeof image !== 'string') return fallback;
     return image.startsWith('http') ? image : fallback;
   }
 
