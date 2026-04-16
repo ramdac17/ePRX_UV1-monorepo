@@ -144,72 +144,42 @@ export class ShareCardService {
   // =====================================================
   // OG HTML (Facebook-optimized)
   // =====================================================
-  private renderOGHtml({
-    title,
-    description,
-    image,
-    url,
-    distance,
-  }: {
-    title: string;
-    description: string;
-    image: string;
-    url: string;
-    distance: string;
-  }) {
+  private renderOGHtml({ title, description, image, url, distance }: any) {
     const safeTitle = this.escapeHtml(title);
     const safeDesc = this.escapeHtml(description);
 
     return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-
-  <!-- CORE OG -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="${url}" />
-  <meta property="og:title" content="${safeTitle}" />
-  <meta property="og:description" content="${safeDesc}" />
-  <meta property="og:image" content="${image}" />
-  <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:site_name" content="ePRX UV1" />
-
-  <!-- TWITTER -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${safeTitle}" />
-  <meta name="twitter:description" content="${safeDesc}" />
-  <meta name="twitter:image" content="${image}" />
-
   <title>${safeTitle}</title>
 
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta property="og:type" content="article" /> <meta property="og:url" content="${url}" />
+  <meta property="og:title" content="${safeTitle}" />
+  <meta property="og:description" content="${safeDesc}" />
+  
+  <meta property="og:image" content="${image}" />
+  <meta property="og:image:secure_url" content="${image}" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <meta property="og:site_name" content="ePRX UV1" />
+  <meta property="fb:app_id" content="YOUR_FB_APP_ID_IF_YOU_HAVE_ONE" />
 
   <style>
-    body {
-      margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      text-align: center;
-    }
+    body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
   </style>
 </head>
-
 <body>
   <div>
-    <h1>ePRX Mission Log</h1>
-    <p>${distance} KM Completed</p>
+    <h1>ePRX MISSION LOG</h1>
+    <p>${distance} KM COMPLETED</p>
   </div>
 </body>
 </html>
-    `;
+  `;
   }
 
   // =====================================================
