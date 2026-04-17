@@ -20,38 +20,40 @@ export class ShareCardService {
   // =====================================================
   async generateOGPage(id: string): Promise<string> {
     try {
-      const activity = await this.prisma.activity.findUnique({
-        where: { id },
-      });
+      // 1. Fetch the activity
+      let activity = await this.prisma.activity.findUnique({ where: { id } });
 
-      const fallbackImage = `${process.env.BACKEND_URL}/default-share.png`;
+      // 2. RETRY LOGIC: If image is null, wait 2 seconds and check again
+      // This gives the background Satori process time to finish
+      if (!activity?.shareImageUrl) {
+        this.logger.log(`Image not ready for ${id}, waiting 2s...`);
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        activity = await this.prisma.activity.findUnique({ where: { id } });
+      }
+
       const distance = this.formatDistance(activity?.distance);
       const duration = activity?.duration ?? 0;
       const pace = activity?.pace ?? '0:00';
 
-      const title = `ePRX Mission Log - ${distance} KM`;
-      const description = `Time: ${duration}s • Pace: ${pace}`;
+      // 3. Resolve Image with Cache Buster
+      const image = this.resolveOgImage(
+        activity,
+        `${process.env.BACKEND_URL}/default-share.png`,
+      );
 
-      // Use the newly generated shareImageUrl if it exists
-      const image = this.resolveOgImage(activity, fallbackImage);
-
-      // Cache-busting for social scrapers
-
-      const cacheBustingImage = image.includes('cloudinary')
-        ? `${image}?v=${Date.now()}`
+      // Add a timestamp to the image URL to force FB to ignore its old cache
+      const finalImage = image.includes('cloudinary')
+        ? `${image}?t=${Date.now()}`
         : image;
 
-      const url = `${process.env.BACKEND_URL}/share/activity/${id}?v=${Date.now()}`;
-
       return this.renderOGHtml({
-        title,
-        description,
-        image,
-        url,
+        title: `ePRX Mission - ${distance} KM`,
+        description: `Time: ${duration}s • Pace: ${pace}`,
+        image: finalImage,
+        url: `${process.env.BACKEND_URL}/share/activity/${id}`,
         distance,
       });
     } catch (err) {
-      this.logger.error(`OG_PAGE_FAILED: ${id}`, err);
       return this.renderFallbackOG();
     }
   }
@@ -203,16 +205,16 @@ export class ShareCardService {
 <head>
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
-  <meta property="og:type" content="website" /> 
-  <meta property="og:url" content="${url}" />
-  <meta property="og:title" content="${safeTitle}" />
-  <meta property="og:description" content="${safeDesc}" />
-  <meta property="og:image" content="${image}" />
-  <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="1080" />
-  <meta property="og:image:height" content="1080" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta property="og:site_name" content="ePRX UV1" />
+  <meta property="og:type" content="website" />
+<meta property="og:title" content="${safeTitle}" />
+<meta property="og:description" content="${safeDesc}" />
+<meta property="og:image" content="${image}" />
+<meta property="og:image:secure_url" content="${image}" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1080" />
+<meta property="og:image:height" content="1080" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="${image}" />
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
     .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; }
