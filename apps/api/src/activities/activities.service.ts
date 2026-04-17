@@ -4,7 +4,7 @@ import { ShareCardService } from '../share-card/share-card.service';
 
 @Injectable()
 export class ActivitiesService {
-  private readonly logger = new Logger('ActivitiesService');
+  private readonly logger = new Logger(ActivitiesService.name);
 
   constructor(
     private prisma: PrismaService,
@@ -26,8 +26,8 @@ export class ActivitiesService {
 
     const totals = activities.reduce(
       (acc, curr) => ({
-        distance: acc.distance + (curr.distance || 0),
-        duration: acc.duration + (curr.duration || 0),
+        distance: acc.distance + (Number(curr.distance) || 0),
+        duration: acc.duration + (Number(curr.duration) || 0),
       }),
       { distance: 0, duration: 0 },
     );
@@ -57,14 +57,23 @@ export class ActivitiesService {
           ? JSON.parse(data.coordinates)
           : data.coordinates,
       userId,
+      // Ensure shareImageUrl starts as null/empty
+      shareImageUrl: null,
     };
 
     const activity = await this.prisma.activity.create({
       data: parsedData,
     });
 
-    // 🔥 fire-and-forget (safe async)
-    void this.generateShareCardAsync(activity);
+    this.logger.log(
+      `Activity Created: ${activity.id}. Starting Satori generation...`,
+    );
+
+    // 🔥 Background process for Satori + Cloudinary
+    // We don't await this so the mobile app gets a fast response
+    this.generateShareCardAsync(activity).catch((err) => {
+      this.logger.error(`UNHANDLED_SHARE_CARD_ERROR: ${activity.id}`, err);
+    });
 
     return activity;
   }
@@ -74,20 +83,30 @@ export class ActivitiesService {
   // ===============================
   private async generateShareCardAsync(activity: any) {
     try {
-      // The Service already:
-      // 1. Launches Puppeteer
-      // 2. Uploads to Cloudinary
-      // 3. Updates the Activity table with the new URL
-      await this.shareCardService.generateShareImage({
+      // 1. Generate PNG buffer and upload to Cloudinary via Satori
+      // This call should return the secure_url from Cloudinary
+      const imageUrl = await this.shareCardService.generateShareImage({
         activityId: activity.id,
         distance: activity.distance,
         pace: activity.pace,
         duration: activity.duration,
       });
 
-      this.logger.log(`SHARE_CARD_PROCESS_COMPLETE: ${activity.id}`);
+      if (!imageUrl) {
+        throw new Error('ShareCardService returned an empty URL');
+      }
+
+      // 2. Explicitly update the database record here
+      await this.prisma.activity.update({
+        where: { id: activity.id },
+        data: { shareImageUrl: imageUrl },
+      });
+
+      this.logger.log(`✅ SHARE CARD UPLOADED AND DB UPDATED: ${activity.id}`);
     } catch (error) {
-      this.logger.error(`SHARE_CARD_FAILED: ${activity.id}`, error);
+      this.logger.error(
+        `❌ SHARE CARD FAILED for Activity ${activity.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

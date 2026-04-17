@@ -31,6 +31,8 @@ export class ShareCardService {
 
       const title = `ePRX Mission Log - ${distance} KM`;
       const description = `Time: ${duration}s • Pace: ${pace}`;
+
+      // Use the newly generated shareImageUrl if it exists
       const image = this.resolveOgImage(activity, fallbackImage);
 
       // Cache-busting for social scrapers
@@ -59,13 +61,26 @@ export class ShareCardService {
     duration?: number;
   }): Promise<string> {
     try {
-      // 1. Font Resolution (Relative to the app root)
-      const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter-Bold.ttf');
+      // 1. Robust Font Resolution (Scanning multiple likely locations)
+      const possibleFontPaths = [
+        join(process.cwd(), 'apps/api/public/fonts/Inter-Bold.ttf'),
+        join(process.cwd(), 'public/fonts/Inter-Bold.ttf'),
+        join(__dirname, '..', '..', 'public', 'fonts', 'Inter-Bold.ttf'),
+      ];
 
-      if (!fs.existsSync(fontPath)) {
-        throw new Error(
-          `Font not found at ${fontPath}. Ensure fonts are in apps/api/public/fonts/`,
+      let fontPath = '';
+      for (const p of possibleFontPaths) {
+        if (fs.existsSync(p)) {
+          fontPath = p;
+          break;
+        }
+      }
+
+      if (!fontPath) {
+        this.logger.error(
+          `CRITICAL: Font not found. Checked: ${possibleFontPaths.join(', ')}`,
         );
+        throw new Error('Inter-Bold.ttf missing from build artifacts');
       }
 
       const fontData = fs.readFileSync(fontPath);
@@ -137,21 +152,26 @@ export class ShareCardService {
       });
       const pngBuffer = resvg.render().asPng();
 
-      // 4. Cloudinary Upload & DB Update
+      // 4. Cloudinary Upload
+      this.logger.log(
+        `Uploading mission card for ${data.activityId} to Cloudinary...`,
+      );
       const imageUrl = await this.cloudinary.uploadShareCard(
         pngBuffer,
         data.activityId,
       );
 
-      await this.prisma.activity.update({
-        where: { id: data.activityId },
-        data: { shareImageUrl: imageUrl },
-      });
+      if (!imageUrl) throw new Error('Cloudinary upload returned no URL');
 
-      this.logger.log(`Share image successfully generated: ${imageUrl}`);
+      this.logger.log(`✅ Satori image generated & uploaded: ${imageUrl}`);
+
+      // Return the URL to ActivitiesService for DB persistence
       return imageUrl;
     } catch (err) {
-      this.logger.error('SATORI_GENERATION_FAILED', err);
+      this.logger.error(
+        `SATORI_GENERATION_FAILED for ${data.activityId}`,
+        err instanceof Error ? err.message : String(err),
+      );
       throw err;
     }
   }
@@ -170,23 +190,25 @@ export class ShareCardService {
 <head>
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
-  <meta property="og:type" content="article" /> 
+  <meta property="og:type" content="website" /> 
   <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
   <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:width" content="1080" />
+  <meta property="og:image:height" content="1080" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta property="og:site_name" content="ePRX UV1" />
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+    .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; }
   </style>
 </head>
 <body>
-  <div>
+  <div class="card">
     <h1>ePRX MISSION LOG</h1>
-    <p>${distance} KM COMPLETED</p>
+    <p style="font-size: 2rem;">${distance} KM COMPLETED</p>
   </div>
 </body>
 </html>`;
@@ -198,13 +220,14 @@ export class ShareCardService {
   }
 
   private resolveOgImage(activity: any, fallback: string): string {
+    // Prioritize Satori Share Card, then Map, then Fallback
     const image = activity?.shareImageUrl || activity?.mapImageUrl || fallback;
     return typeof image === 'string' && image.startsWith('http')
       ? image
       : fallback;
   }
 
-  private formatDistance(distance?: number): string {
+  private formatDistance(distance?: number | any): string {
     return distance ? Number(distance).toFixed(2) : '0.00';
   }
 
