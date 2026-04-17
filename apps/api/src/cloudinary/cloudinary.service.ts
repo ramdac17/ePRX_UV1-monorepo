@@ -1,34 +1,52 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 @Injectable()
 export class CloudinaryService implements OnModuleInit {
   private readonly logger = new Logger(CloudinaryService.name);
 
+  // Initialize Cloudinary Configuration
   onModuleInit() {
-    const config = {
+    cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
       api_secret: process.env.CLOUDINARY_API_SECRET,
-    };
+    });
+    this.logger.log('Cloudinary SDK Initialized');
+  }
 
-    // Simple check to prevent silent hangs
-    if (!config.cloud_name || !config.api_key) {
-      this.logger.error(
-        '❌ Cloudinary config is missing! Check environment variables.',
+  // ===============================
+  // 🚀 BASE64 UPLOADER (FOR MAPS)
+  // ===============================
+  async uploadBase64(
+    base64String: string,
+    folder: string = 'eprx_maps',
+  ): Promise<any> {
+    try {
+      this.logger.log(`Uploading Base64 image to folder: ${folder}`);
+      // Cloudinary handles the "data:image/jpeg;base64,..." format automatically
+      const result = await cloudinary.uploader.upload(base64String, {
+        folder: folder,
+        resource_type: 'image',
+      });
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Base64 Upload Failed:', error);
+      throw new Error(
+        `Cloudinary Upload Failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-    } else {
-      cloudinary.config(config);
-      this.logger.log('✅ Cloudinary configured successfully.');
     }
   }
 
   // ===============================
-  // 🔥 SHARE CARD UPLOADER
+  // 🔥 SHARE CARD UPLOADER (BUFFER)
   // ===============================
   async uploadShareCard(buffer: Buffer, activityId: string): Promise<string> {
     this.logger.log(`Starting Cloudinary upload for activity: ${activityId}`);
+
+    if (!buffer || buffer.length === 0) {
+      throw new Error('Buffer is empty! Cannot upload to Cloudinary.');
+    }
 
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -36,7 +54,7 @@ export class CloudinaryService implements OnModuleInit {
           folder: 'eprx_share_cards',
           public_id: `activity-${activityId}`,
           overwrite: true,
-          resource_type: 'image', // Explicitly set this
+          resource_type: 'image',
         },
         (error, result) => {
           if (error) {
@@ -48,19 +66,12 @@ export class CloudinaryService implements OnModuleInit {
         },
       );
 
-      // If the buffer is empty, this will hang. Let's add a guard.
-      if (!buffer || buffer.length === 0) {
-        return reject(
-          new Error('Buffer is empty! Cannot upload to Cloudinary.'),
-        );
-      }
-
       stream.end(buffer);
     });
   }
 
   // ===============================
-  // 🔥 GENERIC UPLOAD (OPTIONAL FLEX)
+  // 📦 GENERIC UPLOADER
   // ===============================
   async uploadImage(buffer: Buffer, folder = 'eprx_misc'): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -74,7 +85,6 @@ export class CloudinaryService implements OnModuleInit {
           resolve(result?.secure_url || '');
         },
       );
-
       stream.end(buffer);
     });
   }
