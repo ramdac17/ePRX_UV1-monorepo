@@ -36,6 +36,11 @@ export class ShareCardService {
       const image = this.resolveOgImage(activity, fallbackImage);
 
       // Cache-busting for social scrapers
+
+      const cacheBustingImage = image.includes('cloudinary')
+        ? `${image}?v=${Date.now()}`
+        : image;
+
       const url = `${process.env.BACKEND_URL}/share/activity/${id}?v=${Date.now()}`;
 
       return this.renderOGHtml({
@@ -228,11 +233,23 @@ export class ShareCardService {
   }
 
   private resolveOgImage(activity: any, fallback: string): string {
-    // Prioritize Satori Share Card, then Map, then Fallback
-    const image = activity?.shareImageUrl || activity?.mapImageUrl || fallback;
-    return typeof image === 'string' && image.startsWith('http')
-      ? image
-      : fallback;
+    this.logger.log(`Resolving OG Image for Activity: ${activity?.id}`);
+
+    // 1. Check the Satori generated share card (Highest Priority)
+    if (activity?.shareImageUrl && activity.shareImageUrl.startsWith('http')) {
+      this.logger.log(`Using Share Image: ${activity.shareImageUrl}`);
+      return activity.shareImageUrl;
+    }
+
+    // 2. Check for the Map Image (Second Priority)
+    if (activity?.mapImageUrl && activity.mapImageUrl.startsWith('http')) {
+      this.logger.log(`Using Map Image: ${activity.mapImageUrl}`);
+      return activity.mapImageUrl;
+    }
+
+    // 3. Fallback (Last Resort)
+    this.logger.warn(`No images found for ${activity?.id}, using fallback.`);
+    return fallback;
   }
 
   private formatDistance(distance?: number | any): string {

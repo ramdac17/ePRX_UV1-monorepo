@@ -7,10 +7,8 @@ export class ShareCardController {
   constructor(private readonly shareCardService: ShareCardService) {}
 
   @Get('activity/:id')
-  async getActivitySharePage(@Param('id') id: string, @Res() res: Response) {
-    const html = await this.shareCardService.generateOGPage(id);
-
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+  async getSharePage(@Param('id') id: string) {
+    // IMPORTANT: The service needs the ID to fetch the LATEST data from DB
+    return this.shareCardService.generateOGPage(id);
   }
 }
