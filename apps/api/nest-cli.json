@@ -6,8 +6,7 @@
     "deleteOutDir": true,
     "assets": [
       {
-        "include": "../public/**/*",
-        "outDir": "dist/public",
+        "include": "public/**/*",
         "watchAssets": true
       }
     ],
@@ -29,7 +28,13 @@
       "entryFile": "main",
       "sourceRoot": "apps/api/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/api/tsconfig.app.json"
+        "tsConfigPath": "apps/api/tsconfig.app.json",
+        "assets": [
+          {
+            "include": "public/**/*",
+            "watchAssets": true
+          }
+        ]
       }
     }
   }
