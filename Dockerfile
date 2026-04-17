@@ -39,4 +39,4 @@ EXPOSE 3000
 # ===== Runtime command =====
 # Note: Check if your dist path is actually dist/apps/api/src/main.js 
 # In many Nest monorepos, it's just dist/apps/api/main.js
-CMD ["sh", "-c", "cd apps/api && pnpm exec prisma migrate deploy && node ../../dist/apps/api/main.js"]
+CMD ["sh", "-c", "cd apps/api && pnpm exec prisma migrate deploy && node ../../dist/apps/api/src/main.js"]
