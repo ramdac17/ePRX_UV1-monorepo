@@ -52,12 +52,13 @@ export class ActivitiesService {
       duration: parseInt(data.duration) || 0,
       pace: data.pace?.toString() || '0:00',
       elevation: parseFloat(data.elevation) || 0,
+      // 🚀 CAPTURE THE MAP IMAGE URL FROM MOBILE
+      mapImageUrl: data.mapImageUrl || null,
       coordinates:
         typeof data.coordinates === 'string'
           ? JSON.parse(data.coordinates)
           : data.coordinates,
       userId,
-      // Ensure shareImageUrl starts as null/empty
       shareImageUrl: null,
     };
 
@@ -65,16 +66,13 @@ export class ActivitiesService {
       data: parsedData,
     });
 
-    this.logger.log(
-      `Activity Created: ${activity.id}. Starting Satori generation...`,
-    );
+    this.logger.log(`Activity Created: ${activity.id}`);
 
-    // 🔥 Background process for Satori + Cloudinary
-    // We don't await this so the mobile app gets a fast response
+    // background task...
     this.generateShareCardAsync(activity).catch((err) => {
-      this.logger.error(`UNHANDLED_SHARE_CARD_ERROR: ${activity.id}`, err);
+      this.logger.error(`BACKGROUND_ERROR: ${activity.id}`, err);
     });
-
+    await this.generateShareCardAsync(activity);
     return activity;
   }
 
