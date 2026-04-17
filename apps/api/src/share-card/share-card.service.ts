@@ -63,8 +63,16 @@ export class ShareCardService {
     try {
       // 1. Robust Font Resolution (Scanning multiple likely locations)
       const possibleFontPaths = [
-        join(process.cwd(), 'apps/api/public/fonts/Inter-Bold.ttf'),
-        join(process.cwd(), 'public/fonts/Inter-Bold.ttf'),
+        // 1. Current working directory + public (Standard)
+        join(process.cwd(), 'public', 'fonts', 'Inter-Bold.ttf'),
+
+        // 2. Monorepo root style (if process.cwd is /app)
+        join(process.cwd(), 'apps', 'api', 'public', 'fonts', 'Inter-Bold.ttf'),
+
+        // 3. Absolute path for Railway/Docker
+        '/app/apps/api/public/fonts/Inter-Bold.ttf',
+
+        // 4. Relative to the compiled file (the "nuclear" option)
         join(__dirname, '..', '..', 'public', 'fonts', 'Inter-Bold.ttf'),
       ];
 
