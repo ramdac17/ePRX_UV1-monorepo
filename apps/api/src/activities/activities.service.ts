@@ -88,6 +88,7 @@ export class ActivitiesService {
     });
 
     this.logger.log(`Activity ${activity.id} logged. Triggering Share Card...`);
+    this.logger.log('DB_SAVE_PAYLOAD: ' + JSON.stringify(parsedData));
 
     // 🔥 Background process for Satori (Non-blocking)
     this.generateShareCardAsync(activity).catch((err) => {
