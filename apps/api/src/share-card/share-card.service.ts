@@ -170,40 +170,36 @@ export class ShareCardService {
 <head>
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
-  <meta property="og:type" content="article" /> <meta property="og:url" content="${url}" />
+  <meta property="og:type" content="fitness.course" /> 
+  <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
-  <meta property="og:image" content="${image}" />
-  <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="768" />
-  <meta property="og:image:height" content="534" />
-  <meta property="og:image:type" content="image/jpeg" />
-  <meta property="fb:app_id" content="1592938017610534" />
   
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${safeTitle}" />
-  <meta name="twitter:description" content="${safeDesc}" />
-  <meta name="twitter:image" content="${image}" />
+  <meta property="og:image" content="${image.split('?')[0]}" />
+  <meta property="og:image:secure_url" content="${image.split('?')[0]}" />
+  
+  <meta property="og:image:width" content="1080" />
+  <meta property="og:image:height" content="1080" />
+  <meta property="og:image:type" content="image/jpeg" />
+  
+  <meta property="fb:app_id" content="1592938017610534" />
 
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
-    .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; max-width: 80%; }
-    h1 { letter-spacing: 2px; color: #00fff2; font-weight: 900; }
+    .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>ePRX MISSION LOG</h1>
-    <p style="font-size: 2rem; font-weight: bold;">${distance} KM COMPLETED</p>
-    <p style="opacity: 0.6;">Syncing with the grid...</p>
+    <p>${distance} KM COMPLETED</p>
   </div>
   <script>
-    // 🛡️ BOT CHECK: Only redirect if NOT a crawler
-    const isBot = /bot|facebookexternalhit|twitterbot|googlebot/i.test(navigator.userAgent);
-    if (!isBot) {
+    // Only redirect real users, leave the bot alone on the page
+    if (!/bot|facebookexternalhit|twitterbot/i.test(navigator.userAgent)) {
       setTimeout(() => { 
         window.location.href = "https://eprxuv1-monorepo-production.up.railway.app"; 
-      }, 3500); // Increased slightly for slower connections
+      }, 3000);
     }
   </script>
 </body>
