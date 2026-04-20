@@ -178,6 +178,7 @@ export class ShareCardService {
   <meta property="og:image:secure_url" content="${image}" />
   <meta property="og:image:width" content="1080" />
   <meta property="og:image:height" content="1080" />
+  <meta property="fb:app_id" content="1592938017610534" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${image}" />
   <style>
