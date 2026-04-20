@@ -42,7 +42,7 @@ export class ShareCardService {
       );
 
       // Cache Buster: Force FB to ignore stale "Cannot GET" or old image results
-      const finalImage = image.includes('http')
+      const finalImage = image.replace('http://', 'https://')
         ? `${image}?t=${Date.now()}`
         : image;
 
