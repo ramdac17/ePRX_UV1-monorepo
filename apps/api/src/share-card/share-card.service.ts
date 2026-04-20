@@ -170,8 +170,7 @@ export class ShareCardService {
 <head>
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="${url}" />
+  <meta property="og:type" content="article" /> <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
@@ -180,7 +179,12 @@ export class ShareCardService {
   <meta property="og:image:height" content="534" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="fb:app_id" content="1592938017610534" />
-  <meta property="og:image:secure_url" content="https://res.cloudinary.com/dmc2y5aa8/image/upload/v1776688288/eprx_maps/jt9enuhy6lvo7rau1r4v.jpg" />
+  
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${safeTitle}" />
+  <meta name="twitter:description" content="${safeDesc}" />
+  <meta name="twitter:image" content="${image}" />
+
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
     .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; max-width: 80%; }
@@ -194,9 +198,13 @@ export class ShareCardService {
     <p style="opacity: 0.6;">Syncing with the grid...</p>
   </div>
   <script>
-    setTimeout(() => { 
-      window.location.href = "https://eprxuv1-monorepo-production.up.railway.app"; 
-    }, 2500);
+    // 🛡️ BOT CHECK: Only redirect if NOT a crawler
+    const isBot = /bot|facebookexternalhit|twitterbot|googlebot/i.test(navigator.userAgent);
+    if (!isBot) {
+      setTimeout(() => { 
+        window.location.href = "https://eprxuv1-monorepo-production.up.railway.app"; 
+      }, 3500); // Increased slightly for slower connections
+    }
   </script>
 </body>
 </html>`;
