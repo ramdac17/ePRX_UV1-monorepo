@@ -180,8 +180,7 @@ export class ShareCardService {
   <meta property="og:image:height" content="630" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="fb:app_id" content="1592938017610534" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="${image}" />
+  
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
     .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; max-width: 80%; }
