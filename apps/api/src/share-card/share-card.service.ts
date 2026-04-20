@@ -185,8 +185,8 @@ export class ShareCardService {
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
   <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="1080" />
-  <meta property="og:image:height" content="1080" />
+  <meta property="og:image:width" content="600" />
+  <meta property="og:image:height" content="315" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${image}" />
   <style>
