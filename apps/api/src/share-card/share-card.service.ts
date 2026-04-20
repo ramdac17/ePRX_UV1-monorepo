@@ -176,11 +176,11 @@ export class ShareCardService {
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
   <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:width" content="768" />
+  <meta property="og:image:height" content="534" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="fb:app_id" content="1592938017610534" />
-  
+  <meta property="og:image:secure_url" content="https://res.cloudinary.com/dmc2y5aa8/image/upload/v1776688288/eprx_maps/jt9enuhy6lvo7rau1r4v.jpg" />
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
     .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; max-width: 80%; }
