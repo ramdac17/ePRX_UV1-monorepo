@@ -22,7 +22,7 @@ export class ShareCardService {
     try {
       let activity = await this.prisma.activity.findUnique({ where: { id } });
 
-      // Retry logic: If image data hasn't persisted yet, wait briefly
+      // Retry logic: Wait for background image processing if needed
       if (!activity?.mapImageUrl && !activity?.shareImageUrl) {
         this.logger.log(
           `Mission data not fully synced for ${id}, waiting 2.5s...`,
@@ -35,16 +35,15 @@ export class ShareCardService {
       const duration = activity?.duration ?? 0;
       const pace = activity?.pace ?? '0:00';
 
-      // 🚀 THE GOAL: Prioritize Map Image for the social preview
-      const image = this.resolveOgImage(
+      // Resolve base image URL
+      const rawImage = this.resolveOgImage(
         activity,
-        `${process.env.BACKEND_URL}/api/default-share.png`, // Ensure /api/ prefix if applicable
+        `${process.env.BACKEND_URL}/api/default-share.png`,
       );
 
-      // Cache Buster: Force FB to ignore stale "Cannot GET" or old image results
-      const finalImage = image.replace('http://', 'https://')
-        ? `${image}?t=${Date.now()}`
-        : image;
+      // 🛠️ FIX: Ensure HTTPS and correctly append Cache Buster
+      const secureImage = rawImage.replace('http://', 'https://');
+      const finalImage = `${secureImage}${secureImage.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
       return this.renderOGHtml({
         title: `ePRX MISSION: ${distance} KM`,
@@ -150,23 +149,14 @@ export class ShareCardService {
   // =====================================================
 
   private resolveOgImage(activity: any, fallback: string): string {
-    this.logger.log(`Resolving OG Image for Activity: ${activity?.id}`);
-
-    // 🚀 PRIORITY 1: Map Image (The Goal)
+    // 🚀 Priority 1: Map Image (Target Goal)
     if (activity?.mapImageUrl?.startsWith('http')) {
-      this.logger.log(`Using Map Image URL: ${activity.mapImageUrl}`);
       return activity.mapImageUrl;
     }
-
-    // PRIORITY 2: Satori Share Card (Secondary fallback)
+    // Priority 2: Generated Card
     if (activity?.shareImageUrl?.startsWith('http')) {
-      this.logger.log(`Using Share Image URL: ${activity.shareImageUrl}`);
       return activity.shareImageUrl;
     }
-
-    this.logger.warn(
-      `No specific images found for ${activity?.id}, using fallback.`,
-    );
     return fallback;
   }
 
@@ -181,28 +171,31 @@ export class ShareCardService {
   <meta charset="utf-8" />
   <title>${safeTitle}</title>
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${image}" />
   <meta property="og:image:secure_url" content="${image}" />
-  <meta property="og:image:width" content="600" />
-  <meta property="og:image:height" content="315" />
+  <meta property="og:image:width" content="1080" />
+  <meta property="og:image:height" content="1080" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="${image}" />
   <style>
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
     .card { border: 2px solid #00fff2; padding: 40px; border-radius: 20px; text-align: center; max-width: 80%; }
-    h1 { letter-spacing: 2px; color: #00fff2; }
+    h1 { letter-spacing: 2px; color: #00fff2; font-weight: 900; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>ePRX MISSION LOG</h1>
-    <p style="font-size: 2rem;">${distance} KM COMPLETED</p>
-    <p style="opacity: 0.6;">Redirecting to the grid...</p>
+    <p style="font-size: 2rem; font-weight: bold;">${distance} KM COMPLETED</p>
+    <p style="opacity: 0.6;">Syncing with the grid...</p>
   </div>
   <script>
-    setTimeout(() => { window.location.href = "https://eprxuv1-monorepo-production.up.railway.app"; }, 3000);
+    setTimeout(() => { 
+      window.location.href = "https://eprxuv1-monorepo-production.up.railway.app"; 
+    }, 2500);
   </script>
 </body>
 </html>`;
@@ -210,7 +203,7 @@ export class ShareCardService {
 
   private renderFallbackOG(): string {
     const fallback = `${process.env.BACKEND_URL}/api/default-share.png`;
-    return `<!DOCTYPE html><html><head><meta property="og:image" content="${fallback}" /><title>ePRX Mission</title></head><body><h1>Redirecting...</h1></body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8" /><meta property="og:image" content="${fallback}" /><title>ePRX Mission</title></head><body><h1>Redirecting...</h1></body></html>`;
   }
 
   private resolveFontPath(): string {
