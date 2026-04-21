@@ -2,8 +2,8 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { ShareCardService } from '../share-card/share-card.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { Activity } from '@prisma/client'; // 🚀 Added this for type safety
-import axios from 'axios'; // 🚀 Fixed: Added the missing axios import
+import { Activity } from '@prisma/client';
+import axios from 'axios';
 
 @Injectable()
 export class ActivitiesService {
@@ -15,43 +15,10 @@ export class ActivitiesService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  async findAll(userId: string) {
-    return this.prisma.activity.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async getDashboardStats(userId: string) {
-    const activities = await this.prisma.activity.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const totals = activities.reduce(
-      (acc, curr) => ({
-        distance: acc.distance + (Number(curr.distance) || 0),
-        duration: acc.duration + (Number(curr.duration) || 0),
-      }),
-      { distance: 0, duration: 0 },
-    );
-
-    return {
-      recent: activities.slice(0, 7),
-      summary: {
-        totalDistance: totals.distance.toFixed(1),
-        totalHours: (totals.duration / 3600).toFixed(1),
-        activityCount: activities.length,
-      },
-    };
-  }
-
-  // ===============================
-  // 🚀 CREATE ACTIVITY (OPTIMIZED)
-  // ===============================
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
 
+    // 1. Process Map Image
     if (data.mapImageUrl && data.mapImageUrl.startsWith('data:image')) {
       try {
         const uploadResult = await this.cloudinaryService.uploadBase64(
@@ -80,12 +47,11 @@ export class ActivitiesService {
       shareImageUrl: null,
     };
 
-    const activity = await this.prisma.activity.create({
-      data: parsedData,
-    });
+    // 2. Create the initial record
+    const activity = await this.prisma.activity.create({ data: parsedData });
 
     try {
-      // 🚀 We await this now so the image is 100% ready for FB
+      // 3. 🚀 GENERATE IMAGE (Await this so it's ready for the crawler)
       const shareImageUrl = await this.shareCardService.generateShareImage({
         distance: activity.distance,
         pace: activity.pace,
@@ -93,12 +59,13 @@ export class ActivitiesService {
         duration: activity.duration,
       });
 
+      // 4. Update the DB with the Cloudinary link
       const updatedActivity = await this.prisma.activity.update({
         where: { id: activity.id },
         data: { shareImageUrl },
       });
 
-      // 🔥 Force Facebook to cache the image BEFORE the user clicks share
+      // 5. 🔥 THE POKE: Force Facebook to scrape the URL immediately
       this.triggerFacebookScrape(updatedActivity.id);
 
       return updatedActivity;
@@ -114,30 +81,23 @@ export class ActivitiesService {
       const fbAppId = '1592938017610534';
       const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
 
-      // No await here so the API response isn't delayed by Facebook's crawler
+      // This is a fire-and-forget call to the Facebook Graph API
       axios
         .post(`https://graph.facebook.com`, {
           id: url,
           scrape: true,
           access_token: `${fbAppId}|${fbSecret}`,
         })
-        .catch((e) => this.logger.error('FB_ASYNC_SCRAPE_ERR', e.message));
+        .catch((e) =>
+          this.logger.error(
+            'FB_ASYNC_SCRAPE_ERR',
+            e.response?.data || e.message,
+          ),
+        );
 
       this.logger.log(`Facebook scrape triggered for ${activityId}`);
     } catch (e: any) {
       this.logger.error('FB_SCRAPE_FAILED', e.message);
     }
-  }
-
-  async findOne(id: string) {
-    const activity = await this.prisma.activity.findUnique({
-      where: { id },
-    });
-
-    if (!activity) {
-      throw new NotFoundException(`Activity ${id} not found`);
-    }
-
-    return activity;
   }
 }
