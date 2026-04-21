@@ -15,10 +15,58 @@ export class ActivitiesService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
+  // 🚀 RESTORED: findAll
+  async findAll(userId: string) {
+    return this.prisma.activity.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 🚀 RESTORED: getDashboardStats
+  async getDashboardStats(userId: string) {
+    const activities = await this.prisma.activity.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totals = activities.reduce(
+      (acc, curr) => ({
+        distance: acc.distance + (Number(curr.distance) || 0),
+        duration: acc.duration + (Number(curr.duration) || 0),
+      }),
+      { distance: 0, duration: 0 },
+    );
+
+    return {
+      recent: activities.slice(0, 7),
+      summary: {
+        totalDistance: totals.distance.toFixed(1),
+        totalHours: (totals.duration / 3600).toFixed(1),
+        activityCount: activities.length,
+      },
+    };
+  }
+
+  // 🚀 RESTORED: findOne
+  async findOne(id: string) {
+    const activity = await this.prisma.activity.findUnique({
+      where: { id },
+    });
+
+    if (!activity) {
+      throw new NotFoundException(`Activity ${id} not found`);
+    }
+
+    return activity;
+  }
+
+  // ==========================================
+  // 🚀 CREATE ACTIVITY (WITH FACEBOOK FIX)
+  // ==========================================
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
 
-    // 1. Process Map Image
     if (data.mapImageUrl && data.mapImageUrl.startsWith('data:image')) {
       try {
         const uploadResult = await this.cloudinaryService.uploadBase64(
@@ -47,11 +95,9 @@ export class ActivitiesService {
       shareImageUrl: null,
     };
 
-    // 2. Create the initial record
     const activity = await this.prisma.activity.create({ data: parsedData });
 
     try {
-      // 3. 🚀 GENERATE IMAGE (Await this so it's ready for the crawler)
       const shareImageUrl = await this.shareCardService.generateShareImage({
         distance: activity.distance,
         pace: activity.pace,
@@ -59,13 +105,12 @@ export class ActivitiesService {
         duration: activity.duration,
       });
 
-      // 4. Update the DB with the Cloudinary link
       const updatedActivity = await this.prisma.activity.update({
         where: { id: activity.id },
         data: { shareImageUrl },
       });
 
-      // 5. 🔥 THE POKE: Force Facebook to scrape the URL immediately
+      // 🔥 Trigger Facebook Scrape immediately
       this.triggerFacebookScrape(updatedActivity.id);
 
       return updatedActivity;
@@ -81,7 +126,6 @@ export class ActivitiesService {
       const fbAppId = '1592938017610534';
       const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
 
-      // This is a fire-and-forget call to the Facebook Graph API
       axios
         .post(`https://graph.facebook.com`, {
           id: url,
