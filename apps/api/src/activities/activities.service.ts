@@ -127,23 +127,26 @@ export class ActivitiesService {
     const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
 
     try {
-      // 🚀 THE FIX: Use URLSearchParams to ensure the '|' is handled correctly
-      // and use the Graph API version 20.0 (or current) for better stability.
-      const endpoint = `https://graph.facebook.com/v20.0/`;
+      // 🚀 THE FIX: Explicitly create a search params object
+      // This ensures the '|' is encoded as %7C, which FB requires for signatures.
+      const params = new URLSearchParams();
+      params.append('id', shareUrl);
+      params.append('scrape', 'true');
+      params.append('access_token', `${fbAppId}|${fbSecret}`);
 
-      await axios.post(endpoint, null, {
-        params: {
-          id: shareUrl,
-          scrape: true,
-          access_token: `${fbAppId}|${fbSecret}`,
-        },
-      });
+      const endpoint = `https://graph.facebook.com/v20.0/?${params.toString()}`;
+
+      // We use a POST but with an empty body, as the params are now in the URL string
+      await axios.post(endpoint);
 
       this.logger.log(`✅ FB_SCRAPE_SUCCESS: ${activityId}`);
     } catch (e: any) {
-      // Log the detailed error from FB so we can see if it's still a signature issue
-      const fbError = e.response?.data?.error?.message || e.message;
-      this.logger.error(`❌ FB_SCRAPE_FAILED: ${fbError}`);
+      const errorData = e.response?.data?.error || {};
+      this.logger.error('FB_SCRAPE_FAILED_DETAIL', {
+        message: errorData.message || e.message,
+        code: errorData.code,
+        type: errorData.type,
+      });
     }
   }
 }
