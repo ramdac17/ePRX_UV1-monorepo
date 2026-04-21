@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { ShareCardService } from '../share-card/share-card.service';
-import { CloudinaryService } from '../cloudinary/cloudinary.service'; // Ensure this path is correct
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { Activity } from '@prisma/client'; // 🚀 Added this for type safety
+import axios from 'axios'; // 🚀 Fixed: Added the missing axios import
 
 @Injectable()
 export class ActivitiesService {
@@ -10,7 +12,7 @@ export class ActivitiesService {
   constructor(
     private prisma: PrismaService,
     private shareCardService: ShareCardService,
-    private cloudinaryService: CloudinaryService, // 🚀 ADDED THIS TO FIX THE RED LINE
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async findAll(userId: string) {
@@ -50,21 +52,16 @@ export class ActivitiesService {
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
 
-    // 1. Process Base64 Map Image (if present)
     if (data.mapImageUrl && data.mapImageUrl.startsWith('data:image')) {
       try {
-        this.logger.log('Processing Base64 Map Image...');
-        // We upload to Cloudinary and get the URL back immediately
         const uploadResult = await this.cloudinaryService.uploadBase64(
           data.mapImageUrl,
         );
         uploadedMapUrl = uploadResult.secure_url;
-        this.logger.log(`Map Image URL generated: ${uploadedMapUrl}`);
       } catch (err) {
-        this.logger.error('Map Upload Failed, continuing with fallback.', err);
+        this.logger.error('Map Upload Failed', err);
       }
     } else {
-      // Use existing URL if it's not Base64
       uploadedMapUrl = data.mapImageUrl || null;
     }
 
@@ -80,48 +77,55 @@ export class ActivitiesService {
           : data.coordinates,
       userId,
       mapImageUrl: uploadedMapUrl,
-      shareImageUrl: null, // Initialized as null for the background task to fill
+      shareImageUrl: null,
     };
 
     const activity = await this.prisma.activity.create({
       data: parsedData,
     });
 
-    this.logger.log(`Activity ${activity.id} logged. Triggering Share Card...`);
-    this.logger.log('DB_SAVE_PAYLOAD: ' + JSON.stringify(parsedData));
-
-    // 🔥 Background process for Satori (Non-blocking)
-    this.generateShareCardAsync(activity).catch((err) => {
-      this.logger.error(`BACKGROUND_ERROR: ${activity.id}`, err);
-    });
-
-    return activity;
-  }
-
-  // ===============================
-  // 🔥 BACKGROUND SHARE GENERATION
-  // ===============================
-  private async generateShareCardAsync(activity: any) {
     try {
-      const imageUrl = await this.shareCardService.generateShareImage({
-        activityId: activity.id,
+      // 🚀 We await this now so the image is 100% ready for FB
+      const shareImageUrl = await this.shareCardService.generateShareImage({
         distance: activity.distance,
         pace: activity.pace,
+        activityId: activity.id,
         duration: activity.duration,
       });
 
-      if (!imageUrl) throw new Error('Empty URL from ShareCardService');
-
-      await this.prisma.activity.update({
+      const updatedActivity = await this.prisma.activity.update({
         where: { id: activity.id },
-        data: { shareImageUrl: imageUrl },
+        data: { shareImageUrl },
       });
 
-      this.logger.log(`✅ SHARE CARD READY: ${activity.id}`);
-    } catch (error) {
-      this.logger.error(
-        `❌ SHARE CARD FAILED for ${activity.id}: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // 🔥 Force Facebook to cache the image BEFORE the user clicks share
+      this.triggerFacebookScrape(updatedActivity.id);
+
+      return updatedActivity;
+    } catch (err) {
+      this.logger.error(`SHARE_CARD_CREATION_FAILED: ${activity.id}`, err);
+      return activity;
+    }
+  }
+
+  private async triggerFacebookScrape(activityId: string) {
+    const url = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
+    try {
+      const fbAppId = '1592938017610534';
+      const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
+
+      // No await here so the API response isn't delayed by Facebook's crawler
+      axios
+        .post(`https://graph.facebook.com`, {
+          id: url,
+          scrape: true,
+          access_token: `${fbAppId}|${fbSecret}`,
+        })
+        .catch((e) => this.logger.error('FB_ASYNC_SCRAPE_ERR', e.message));
+
+      this.logger.log(`Facebook scrape triggered for ${activityId}`);
+    } catch (e: any) {
+      this.logger.error('FB_SCRAPE_FAILED', e.message);
     }
   }
 
