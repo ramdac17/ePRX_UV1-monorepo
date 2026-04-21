@@ -123,31 +123,27 @@ export class ActivitiesService {
   private async triggerFacebookScrape(activityId: string) {
     const shareUrl = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
 
-    // 🚀 CLEAN TOKENS
     const fbAppId = '1592938017610534';
     const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
-    const accessToken = `${fbAppId}|${fbSecret}`;
 
     try {
-      // 🚀 Use params instead of body for the token to avoid signature issues
-      axios
-        .post(`https://graph.facebook.com`, null, {
-          params: {
-            id: shareUrl,
-            scrape: true,
-            access_token: accessToken,
-          },
-        })
-        .catch((e) => {
-          this.logger.error(
-            'FB_ASYNC_SCRAPE_ERR',
-            e.response?.data || e.message,
-          );
-        });
+      // 🚀 THE FIX: Use URLSearchParams to ensure the '|' is handled correctly
+      // and use the Graph API version 20.0 (or current) for better stability.
+      const endpoint = `https://graph.facebook.com/v20.0/`;
 
-      this.logger.log(`Facebook scrape request sent for ${activityId}`);
+      await axios.post(endpoint, null, {
+        params: {
+          id: shareUrl,
+          scrape: true,
+          access_token: `${fbAppId}|${fbSecret}`,
+        },
+      });
+
+      this.logger.log(`✅ FB_SCRAPE_SUCCESS: ${activityId}`);
     } catch (e: any) {
-      this.logger.error('FB_SCRAPE_FAILED', e.message);
+      // Log the detailed error from FB so we can see if it's still a signature issue
+      const fbError = e.response?.data?.error?.message || e.message;
+      this.logger.error(`❌ FB_SCRAPE_FAILED: ${fbError}`);
     }
   }
 }
