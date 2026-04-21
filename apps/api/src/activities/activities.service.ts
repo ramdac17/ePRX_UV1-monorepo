@@ -121,25 +121,31 @@ export class ActivitiesService {
   }
 
   private async triggerFacebookScrape(activityId: string) {
-    const url = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
-    try {
-      const fbAppId = '1592938017610534';
-      const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
+    const shareUrl = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
 
+    // 🚀 CLEAN TOKENS
+    const fbAppId = '1592938017610534';
+    const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
+    const accessToken = `${fbAppId}|${fbSecret}`;
+
+    try {
+      // 🚀 Use params instead of body for the token to avoid signature issues
       axios
-        .post(`https://graph.facebook.com`, {
-          id: url,
-          scrape: true,
-          access_token: `${fbAppId}|${fbSecret}`,
+        .post(`https://graph.facebook.com`, null, {
+          params: {
+            id: shareUrl,
+            scrape: true,
+            access_token: accessToken,
+          },
         })
-        .catch((e) =>
+        .catch((e) => {
           this.logger.error(
             'FB_ASYNC_SCRAPE_ERR',
             e.response?.data || e.message,
-          ),
-        );
+          );
+        });
 
-      this.logger.log(`Facebook scrape triggered for ${activityId}`);
+      this.logger.log(`Facebook scrape request sent for ${activityId}`);
     } catch (e: any) {
       this.logger.error('FB_SCRAPE_FAILED', e.message);
     }
