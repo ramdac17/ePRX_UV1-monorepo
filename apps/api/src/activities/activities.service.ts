@@ -124,11 +124,17 @@ export class ActivitiesService {
     const shareUrl = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
 
     const fbAppId = '1592938017610534';
-    const fbSecret = '7340d59ea80c7e8d35e42beda231451ecd';
+    // 🚀 Use the environment variable instead of hardcoding
+    const fbSecret = process.env.FB_APP_SECRET;
+
+    if (!fbSecret) {
+      this.logger.error(
+        'FB_APP_SECRET is not defined in environment variables',
+      );
+      return;
+    }
 
     try {
-      // 🚀 THE FIX: Explicitly create a search params object
-      // This ensures the '|' is encoded as %7C, which FB requires for signatures.
       const params = new URLSearchParams();
       params.append('id', shareUrl);
       params.append('scrape', 'true');
@@ -136,17 +142,13 @@ export class ActivitiesService {
 
       const endpoint = `https://graph.facebook.com/v20.0/?${params.toString()}`;
 
-      // We use a POST but with an empty body, as the params are now in the URL string
       await axios.post(endpoint);
-
       this.logger.log(`✅ FB_SCRAPE_SUCCESS: ${activityId}`);
     } catch (e: any) {
-      const errorData = e.response?.data?.error || {};
-      this.logger.error('FB_SCRAPE_FAILED_DETAIL', {
-        message: errorData.message || e.message,
-        code: errorData.code,
-        type: errorData.type,
-      });
+      this.logger.error(
+        'FB_SCRAPE_FAILED',
+        e.response?.data?.error?.message || e.message,
+      );
     }
   }
 }
