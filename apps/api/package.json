@@ -17,6 +17,7 @@
     "test:share": "curl http://localhost:3001/api/share-card/123 --output test.png"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
     "@nestjs/common": "^11.1.13",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.1.13",
