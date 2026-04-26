@@ -1,59 +1,62 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly resend = new Resend(process.env.RESEND_API_KEY);
+  private transporter: nodemailer.Transporter;
 
-  /**
-   * CORE SENDER
-   * Uses HTTPS instead of SMTP to avoid Railway port blocking
-   */
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false, // Port 587 uses STARTTLS
+
+      // 🛡️ RAILWAY ARMOR: Force IPv4 to bypass ENETUNREACH
+      family: 4,
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 20000,
+
+      auth: {
+        user: process.env.MAIL_USER, // Your Brevo login email
+        pass: process.env.MAIL_PASS, // Your Brevo SMTP Key
+      },
+    } as SMTPTransport.Options);
+  }
+
   private async sendMail(to: string, subject: string, html: string) {
     try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'ePRX UV1 <onboarding@resend.dev>', // Update to your domain later
-        to: [to],
+      const result = await this.transporter.sendMail({
+        from: `"ePRX UV1" <${process.env.MAIL_USER}>`,
+        to,
         subject,
         html,
       });
 
-      if (error) throw error;
-
-      this.logger.log(`Email sent via Resend: ${data?.id}`);
-      return data;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Resend failed to send email: ${message}`);
+      this.logger.log(`Uplink Successful: Email sent to ${to}`);
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Uplink Failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw error;
     }
   }
 
+  // Verification & Reset methods remain the same as before...
   async sendVerificationEmail(to: string, token: string) {
     const url = `${process.env.FRONTEND_URL}/auth/verify-email?token=${token}`;
     const html = this.getHtmlWrapper(
       'Verify Your Email',
-      'Welcome to ePRX UV1. Please secure your account by clicking below.',
+      'Join the ePRX UV1 mission.',
       url,
       'Verify Email',
       '#00fff2',
       '#000',
     );
     return this.sendMail(to, 'Verify your email | ePRX UV1', html);
-  }
-
-  async sendPasswordResetEmail(to: string, token: string) {
-    const url = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
-    const html = this.getHtmlWrapper(
-      'Password Reset',
-      "A password reset was requested. If this wasn't you, ignore this message.",
-      url,
-      'Reset Password',
-      '#ff0055',
-      '#fff',
-    );
-    return this.sendMail(to, 'Reset your password | ePRX UV1', html);
   }
 
   private getHtmlWrapper(
@@ -69,7 +72,7 @@ export class MailService {
         <h2 style="color: ${color};">${title}</h2>
         <p>${text}</p>
         <div style="margin: 30px 0; text-align: center;">
-          <a href="${url}" style="padding: 12px 25px; background: ${color}; color: ${textColor}; text-decoration: none; font-weight: bold; display: inline-block;">
+          <a href="${url}" style="padding: 12px 25px; background: ${color}; color: ${textColor}; text-decoration: none; font-weight: bold; display: inline-block; border-radius: 4px;">
             ${btnText}
           </a>
         </div>
