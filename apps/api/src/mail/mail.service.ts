@@ -7,8 +7,18 @@ export class MailService {
   private readonly brevo: BrevoClient;
 
   constructor() {
+    const apiKey = process.env.MAIL_PASS;
+
+    if (!apiKey) {
+      this.logger.error(
+        'CRITICAL: MAIL_PASS is missing from environment variables!',
+      );
+    } else {
+      this.logger.log(`Brevo initialized with key length: ${apiKey.length}`);
+    }
+
     this.brevo = new BrevoClient({
-      apiKey: process.env.MAIL_PASS || '',
+      apiKey: apiKey || '',
     });
   }
 
