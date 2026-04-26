@@ -6,6 +6,7 @@ import {
   Req,
   Get,
   Param,
+  NotFoundException, // Add this
 } from '@nestjs/common';
 import { ActivitiesService } from './activities.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -14,7 +15,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}
 
-  // 🔒 PRIVATE: Dashboard stats needs a login
   @UseGuards(JwtAuthGuard)
   @Get('stats')
   async getStats(@Req() req: any) {
@@ -22,7 +22,6 @@ export class ActivitiesController {
     return this.activitiesService.getDashboardStats(userId);
   }
 
-  // 🔒 PRIVATE: The general list needs a login
   @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(@Req() req: any) {
@@ -30,7 +29,6 @@ export class ActivitiesController {
     return this.activitiesService.findAll(userId);
   }
 
-  // 🔒 PRIVATE: Creating an activity needs a login
   @UseGuards(JwtAuthGuard)
   @Post()
   async uploadActivity(@Req() req: any, @Body() body: any) {
@@ -38,13 +36,23 @@ export class ActivitiesController {
     return this.activitiesService.createActivity(userId, body);
   }
 
-  // 🌏 PUBLIC: Facebook and the PRX web portal need to see this without a token
+  // 🌏 PUBLIC: Moved above 'user/:userId' to ensure it's the primary wildcard
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.activitiesService.findOne(id);
+    // 💡 LOG: This will show up in Railway Logs
+    console.log(`[API] Attempting to find activity with ID: ${id}`);
+
+    const activity = await this.activitiesService.findOne(id);
+
+    // 💡 CRITICAL: If the DB returns null, NestJS doesn't always throw 404 by default
+    if (!activity) {
+      console.error(`[API] Activity ${id} not found in Database.`);
+      throw new NotFoundException(`Mission ${id} not found.`);
+    }
+
+    return activity;
   }
 
-  // 🌏 PUBLIC: If you want people to see a user's public profile history
   @Get('user/:userId')
   async getHistory(@Param('userId') userId: string) {
     return this.activitiesService.findAll(userId);
