@@ -80,7 +80,7 @@ export class AuthService {
 
     if (!user.emailVerified) {
       throw new UnauthorizedException(
-        'IDENTITY_LOCKED: PLEASE VERIFY YOUR EMAIL VIA OTP.',
+        'IDENTITY LOCKED: PLEASE VERIFY YOUR EMAIL VIA OTP.',
       );
     }
 
@@ -146,7 +146,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || user.verificationToken !== otp) {
-      throw new BadRequestException('INVALID_CREDENTIALS: OTP mismatch');
+      throw new BadRequestException('INVALID CREDENTIALS: OTP mismatch');
     }
 
     // Safety check for null date
@@ -253,7 +253,7 @@ export class AuthService {
         data: { image: imageUrl },
       });
     } catch (error) {
-      throw new InternalServerErrorException('FAILED_TO_UPDATE_USER_IMAGE_REF');
+      throw new InternalServerErrorException('FAILED TO UPDATE USER IMAGE');
     }
   }
 
