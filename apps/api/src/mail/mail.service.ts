@@ -44,7 +44,8 @@ export class MailService {
       );
       return result;
     } catch (error) {
-      this.logger.error(`Uplink Failed for ${to}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Uplink Failed for ${to}: ${message}`);
       throw error;
     }
   }
