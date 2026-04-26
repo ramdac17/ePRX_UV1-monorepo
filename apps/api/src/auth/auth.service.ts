@@ -34,6 +34,8 @@ export class AuthService {
     });
   }
 
+  // --- PRIVATE UTILS ---
+
   private generateToken(payload: {
     sub: string;
     email: string;
@@ -45,18 +47,21 @@ export class AuthService {
     return this.jwtService.sign(payload, { secret });
   }
 
+  // --- CORE METHODS ---
+
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
     if (!user) throw new UnauthorizedException('USER NOT FOUND');
 
+    // Cleaned up destructuring to avoid unused variable redlines
     const {
-      password,
-      verificationToken,
-      verificationTokenExpires,
-      resetToken,
-      resetTokenExpires,
+      password: _p,
+      verificationToken: _vt,
+      verificationTokenExpires: _vte,
+      resetToken: _rt,
+      resetTokenExpires: _rte,
       ...result
     } = user;
 
@@ -75,7 +80,7 @@ export class AuthService {
 
     if (!user.emailVerified) {
       throw new UnauthorizedException(
-        'IDENTITY_LOCKED: PLEASE VERIFY YOUR EMAIL.',
+        'IDENTITY_LOCKED: PLEASE VERIFY YOUR EMAIL VIA OTP.',
       );
     }
 
@@ -87,11 +92,11 @@ export class AuthService {
     };
 
     const {
-      password: _,
-      verificationToken: __,
-      verificationTokenExpires: ___,
-      resetToken: ____,
-      resetTokenExpires: _____,
+      password: _p,
+      verificationToken: _vt,
+      verificationTokenExpires: _vte,
+      resetToken: _rt,
+      resetTokenExpires: _rte,
       ...result
     } = user;
 
@@ -109,7 +114,10 @@ export class AuthService {
       where: { email },
     });
     if (existingUser) throw new BadRequestException('USER ALREADY EXISTS');
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 🛡️ GENERATE 6-DIGIT OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
     expiryDate.setMinutes(expiryDate.getMinutes() + 10);
@@ -128,23 +136,27 @@ export class AuthService {
       },
     });
 
+    // 🛰️ UPLINK OTP VIA BREVO
     await this.mailService.sendVerificationEmail(email, otp);
+
     return { message: 'OTP_SENT', expires_in: '10m' };
   }
 
   async verifyOtp(email: string, otp: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    if (!user || !user.verificationToken || !user.verificationTokenExpires) {
-      throw new BadRequestException('NO ACTIVE VERIFICATION FOUND');
+    if (!user || user.verificationToken !== otp) {
+      throw new BadRequestException('INVALID_CREDENTIALS: OTP mismatch');
     }
 
-    if (new Date() > user.verificationTokenExpires) {
-      throw new BadRequestException('CODE EXPIRED - REQUEST NEW ONE');
-    }
-
-    if (user.verificationToken !== otp) {
-      throw new BadRequestException('INVALID CODE');
+    // Safety check for null date
+    const expiry = user.verificationTokenExpires
+      ? new Date(user.verificationTokenExpires)
+      : null;
+    if (!expiry || new Date() > expiry) {
+      throw new BadRequestException(
+        'SESSION_EXPIRED: Please request a new OTP',
+      );
     }
 
     await this.prisma.user.update({
@@ -156,8 +168,11 @@ export class AuthService {
       },
     });
 
+    this.logger.log(`--- [ePRX_UV1] IDENTITY_ACTIVATED: ${email} ---`);
     return { status: 'VERIFIED', message: 'IDENTITY ACTIVATED' };
   }
+
+  // --- PASSWORD RECOVERY ---
 
   async requestPasswordReset(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -204,9 +219,11 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`--- [PRX UV] PASSWORD OVERRIDE SUCCESS: ${email} ---`);
+    this.logger.log(`--- [ePRX UV1] PASSWORD OVERRIDE SUCCESS: ${email} ---`);
     return { status: 'CREDENTIALS UPDATED', message: 'IDENTITY RESTORED' };
   }
+
+  // --- MEDIA & CLOUDINARY ---
 
   async uploadToCloudinary(file: any): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {

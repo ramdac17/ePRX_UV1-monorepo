@@ -28,20 +28,4 @@ export class AppController {
       statusCode: 200,
     };
   }
-
-  @Post('feedback')
-  async receiveFeedback(@Body() dto: CreateFeedbackDto) {
-    const result = await this.prismaService.feedback.create({
-      data: {
-        name: dto.name,
-        message: dto.message,
-      },
-    });
-
-    return {
-      message: 'Saved!',
-      id: result.id,
-      statusCode: 201,
-    };
-  }
 }

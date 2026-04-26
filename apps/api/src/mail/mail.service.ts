@@ -51,17 +51,20 @@ export class MailService {
     }
   }
 
-  async sendVerificationEmail(to: string, token: string): Promise<any> {
-    const url = `${process.env.FRONTEND_URL}/auth/verify-email?token=${token}`;
-    const html = this.getHtmlWrapper(
-      'Verify Your Email',
-      'Join the ePRX UV1 mission.',
-      url,
-      'Verify Email',
-      '#00fff2',
-      '#000',
-    );
-    return this.sendMail(to, 'Verify your email | ePRX UV1', html);
+  async sendVerificationEmail(to: string, otp: string): Promise<any> {
+    const html = `
+    <div style="background:#000;color:#fff;padding:40px;border:1px solid #00fff2;font-family:sans-serif;max-width:500px;margin:auto;text-align:center;">
+      <h2 style="color:#00fff2;text-transform:uppercase;letter-spacing:2px;">Verification Required</h2>
+      <p style="margin:20px 0;color:#ccc;">Use the following code to activate your ePRX UV1 account. This code is valid for 10 minutes.</p>
+      
+      <div style="background:#111;border:1px dashed #00fff2;padding:20px;margin:30px 0;">
+        <span style="font-size:32px;font-weight:bold;letter-spacing:10px;color:#00fff2;">${otp}</span>
+      </div>
+      
+      <p style="font-size:12px;color:#555;">If you did not request this, please ignore this email.</p>
+    </div>`;
+
+    return this.sendMail(to, `${otp} is your ePRX verification code`, html);
   }
 
   async sendPasswordResetEmail(to: string, token: string): Promise<any> {
