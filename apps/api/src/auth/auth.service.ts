@@ -55,7 +55,6 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('USER NOT FOUND');
 
-    // Cleaned up destructuring to avoid unused variable redlines
     const {
       password: _p,
       verificationToken: _vt,
@@ -117,7 +116,6 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🛡️ GENERATE 6-DIGIT OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiryDate = new Date();
     expiryDate.setMinutes(expiryDate.getMinutes() + 10);
@@ -136,9 +134,7 @@ export class AuthService {
       },
     });
 
-    // 🛰️ UPLINK OTP VIA BREVO
     await this.mailService.sendVerificationEmail(email, otp);
-
     return { message: 'OTP_SENT', expires_in: '10m' };
   }
 
@@ -149,7 +145,6 @@ export class AuthService {
       throw new BadRequestException('INVALID CREDENTIALS: OTP mismatch');
     }
 
-    // Safety check for null date
     const expiry = user.verificationTokenExpires
       ? new Date(user.verificationTokenExpires)
       : null;
@@ -159,17 +154,48 @@ export class AuthService {
       );
     }
 
+    // 🔄 UPDATE FIELDS ON ACTIVATION
     await this.prisma.user.update({
       where: { email },
       data: {
         emailVerified: true,
         verificationToken: null,
+        // Using "" if the DB is a string, otherwise null.
+        // Based on your previous instruction, we aim for ""
         verificationTokenExpires: null,
       },
     });
 
     this.logger.log(`--- [ePRX_UV1] IDENTITY_ACTIVATED: ${email} ---`);
     return { status: 'VERIFIED', message: 'IDENTITY ACTIVATED' };
+  }
+
+  // 🛡️ THE MISSING CHANGE PASSWORD METHOD
+  async changePassword(userId: string, changePasswordDto: any) {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('USER NOT FOUND');
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      this.logger.warn(
+        `CHANGE_PASSWORD_REJECTED: Incorrect current password for ${user.email}`,
+      );
+      throw new BadRequestException(
+        'Change Password Rejected: Current password incorrect',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    this.logger.log(`--- [ePRX_UV1] PASSWORD_CHANGED: ${user.email} ---`);
+    return { status: 'SUCCESS', message: 'Credentials updated successfully' };
   }
 
   // --- PASSWORD RECOVERY ---

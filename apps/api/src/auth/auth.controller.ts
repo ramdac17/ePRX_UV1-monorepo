@@ -30,6 +30,7 @@ import { RegisterDto } from '../dto/register.dto.js';
 import { LoginDto } from '../dto/login.dto.js';
 import { ResetPasswordDto } from '../dto/reset-password.dto.js';
 import { VerifyOtpDto } from '../dto/verify-otp.dto.js';
+import { ChangePasswordDto } from '../dto/change-password.dto.js'; // 👈 Ensure this DTO exists
 
 import type { Express } from 'express';
 
@@ -65,14 +66,24 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req: any) {
-    const userId = req.user.id || req.user.sub;
+    const userId = req.user.sub || req.user.id;
     return this.authService.getProfile(userId);
   }
 
-  /**
-   * 🛰️ UPLOAD_AVATAR (MEMORY STREAM VERSION)
-   * This is now aligned with AuthModule's memoryStorage.
-   */
+  // 🛡️ NEW: CHANGE PASSWORD (PROFILE PAGE)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    const userId = req.user.sub || req.user.id;
+    this.logger.log(`--- [ePRX_UV1] PASSWORD_CHANGE_REQ: User ${userId} ---`);
+    return await this.authService.changePassword(userId, changePasswordDto);
+  }
+
   @Post('upload-avatar')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
@@ -83,7 +94,7 @@ export class AuthController {
     },
   })
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file')) // 👈 Clean Interceptor (Uses Module Config)
+  @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
     @Request() req: any,
@@ -95,9 +106,8 @@ export class AuthController {
     );
 
     try {
-      // Passes the memory buffer directly to Cloudinary
       const result = await this.authService.uploadToCloudinary(file);
-      const userId = req.user.id || req.user.sub;
+      const userId = req.user.sub || req.user.id;
 
       return await this.authService.updateUserImage(userId, result.secure_url);
     } catch (error: any) {
