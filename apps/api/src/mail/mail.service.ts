@@ -9,23 +9,25 @@ export class MailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: Number(process.env.MAIL_PORT),
-      secure: Number(process.env.MAIL_PORT) === 465,
+      // If Gmail continues to timeout, consider using a relay like SendGrid/Mailgun
+      // but first, let's try to stabilize the Gmail connection:
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // Must be false for 587
 
-      // Railway & IPv6 Connectivity Fixes
+      // THE NETWORK STACK
       family: 4,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+      connectionTimeout: 30000, // Increase to 30s for cloud cold-starts
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
 
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
-      // Debugging logs for non-production environments
-      debug: process.env.NODE_ENV !== 'production',
-      logger: process.env.NODE_ENV !== 'production',
+      // Adding pool: true helps maintain a connection instead of creating
+      // a new handshake for every single registration request
+      pool: true,
     } as SMTPTransport.Options);
   }
 
