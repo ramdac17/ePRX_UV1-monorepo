@@ -221,12 +221,16 @@ export class AuthService {
   }
 
   async resetPassword(resetDto: any) {
-    const { email, token, newPassword } = resetDto;
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const { token, newPassword } = resetDto;
 
+    // 1. Locate user via the unique token
+    const user = await this.prisma.user.findFirst({
+      where: { resetToken: token },
+    });
+
+    // 2. Security Check (Token existence, match, and expiry)
     if (
       !user ||
-      !user.resetToken ||
       user.resetToken !== token ||
       !user.resetTokenExpires ||
       new Date() > user.resetTokenExpires
@@ -236,8 +240,9 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+    // 3. Update using user.id (safer than email)
     await this.prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         resetToken: null,
@@ -245,7 +250,9 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`--- [ePRX UV1] PASSWORD OVERRIDE SUCCESS: ${email} ---`);
+    this.logger.log(
+      `--- [ePRX UV1] PASSWORD OVERRIDE SUCCESS: ${user.email} ---`,
+    );
     return { status: 'CREDENTIALS UPDATED', message: 'IDENTITY RESTORED' };
   }
 
