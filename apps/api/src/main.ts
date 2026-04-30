@@ -86,7 +86,7 @@ async function bootstrap() {
   // 🛡️ SWAGGER CONFIGURATION (ePRX Mission Control)
   const config = new DocumentBuilder()
     .setTitle('ePRX UV1 - CORE API')
-    .setDescription('Mission-critical authentication and profile management')
+    .setDescription('Critical authentication and profile management')
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
