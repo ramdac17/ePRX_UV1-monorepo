@@ -1,18 +1,17 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 @Injectable()
 export class CloudinaryService implements OnModuleInit {
   private readonly logger = new Logger(CloudinaryService.name);
 
-  // Initialize Cloudinary Configuration
   onModuleInit() {
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
       api_secret: process.env.CLOUDINARY_API_SECRET,
     });
-    this.logger.log('Cloudinary SDK Initialized');
+    this.logger.log('Cloudinary SDK Initialized for ePRX UV1');
   }
 
   // ===============================
@@ -20,15 +19,21 @@ export class CloudinaryService implements OnModuleInit {
   // ===============================
   async uploadBase64(
     base64String: string,
-    folder: string = 'eprx_maps',
-  ): Promise<any> {
+    folder: string = 'eprx_uv1/maps', // Updated folder path
+  ): Promise<UploadApiResponse> {
     try {
       this.logger.log(`Uploading Base64 image to folder: ${folder}`);
-      // Cloudinary handles the "data:image/jpeg;base64,..." format automatically
-      const result = await cloudinary.uploader.upload(base64String, {
+
+      // UV1 FIX: Ensure the string has the correct Data URI prefix
+      const finalBase64 = base64String.startsWith('data:image')
+        ? base64String
+        : `data:image/jpeg;base64,${base64String}`;
+
+      const result = await cloudinary.uploader.upload(finalBase64, {
         folder: folder,
         resource_type: 'image',
       });
+
       return result;
     } catch (error) {
       this.logger.error('❌ Base64 Upload Failed:', error);
@@ -45,13 +50,13 @@ export class CloudinaryService implements OnModuleInit {
     this.logger.log(`Starting Cloudinary upload for activity: ${activityId}`);
 
     if (!buffer || buffer.length === 0) {
-      throw new Error('Buffer is empty! Cannot upload to Cloudinary.');
+      throw new Error('Buffer is empty! Cannot generate share card.');
     }
 
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder: 'eprx_share_cards',
+          folder: 'eprx_uv1/share_cards', // Updated folder path
           public_id: `activity-${activityId}`,
           overwrite: true,
           resource_type: 'image',
@@ -73,7 +78,7 @@ export class CloudinaryService implements OnModuleInit {
   // ===============================
   // 📦 GENERIC UPLOADER
   // ===============================
-  async uploadImage(buffer: Buffer, folder = 'eprx_misc'): Promise<string> {
+  async uploadImage(buffer: Buffer, folder = 'eprx_uv1/misc'): Promise<string> {
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {

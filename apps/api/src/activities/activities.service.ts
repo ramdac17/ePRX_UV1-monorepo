@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { ShareCardService } from '../share-card/share-card.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { Activity } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
@@ -15,7 +14,6 @@ export class ActivitiesService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  // 🚀 RESTORED: findAll
   async findAll(userId: string) {
     return this.prisma.activity.findMany({
       where: { userId },
@@ -23,7 +21,6 @@ export class ActivitiesService {
     });
   }
 
-  // 🚀 RESTORED: getDashboardStats
   async getDashboardStats(userId: string) {
     const activities = await this.prisma.activity.findMany({
       where: { userId },
@@ -48,7 +45,6 @@ export class ActivitiesService {
     };
   }
 
-  // 🚀 RESTORED: findOne
   async findOne(id: string) {
     const activity = await this.prisma.activity.findUnique({
       where: { id },
@@ -62,16 +58,18 @@ export class ActivitiesService {
   }
 
   // ==========================================
-  // 🚀 CREATE ACTIVITY (WITH FACEBOOK FIX)
+  // 🚀 CREATE ACTIVITY (ALIGNED WITH UV1 MOBILE)
   // ==========================================
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
 
-    if (data.mapImageUrl && data.mapImageUrl.startsWith('data:image')) {
+    // 1. Image Processing: Support 'mapSnapshot' (Mobile) and 'mapImageUrl' (Web)
+    const rawImage = data.mapSnapshot || data.mapImageUrl;
+
+    if (rawImage && rawImage.startsWith('data:image')) {
       try {
-        const uploadResult = await this.cloudinaryService.uploadBase64(
-          data.mapImageUrl,
-        );
+        const uploadResult =
+          await this.cloudinaryService.uploadBase64(rawImage);
         uploadedMapUrl = uploadResult.secure_url;
       } catch (err) {
         this.logger.error('Map Upload Failed', err);
@@ -80,14 +78,29 @@ export class ActivitiesService {
       uploadedMapUrl = data.mapImageUrl || null;
     }
 
+    // 2. Automated Pace Calculation (Ensures 'pace' string is never empty)
+    const dist = parseFloat(data.distance) || 0;
+    const dur = parseInt(data.duration) || 0;
+    let finalPace = data.pace;
+
+    if (!finalPace && dist > 0 && dur > 0) {
+      const paceMinPerKm = dur / 60 / dist;
+      const mins = Math.floor(paceMinPerKm);
+      const secs = Math.round((paceMinPerKm - mins) * 60);
+      finalPace = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // 3. Data Normalization
     const parsedData = {
       title: data.title || 'NEW_SESSION',
-      distance: parseFloat(data.distance) || 0,
-      duration: parseInt(data.duration) || 0,
-      pace: data.pace?.toString() || '0:00',
+      distance: dist,
+      duration: dur,
+      pace: finalPace?.toString() || '0:00',
       elevation: parseFloat(data.elevation) || 0,
-      coordinates:
-        typeof data.coordinates === 'string'
+      // Map 'path' (Mobile) or 'coordinates' (Existing) safely
+      coordinates: Array.isArray(data.path)
+        ? data.path
+        : typeof data.coordinates === 'string'
           ? JSON.parse(data.coordinates)
           : data.coordinates,
       userId,
@@ -97,6 +110,7 @@ export class ActivitiesService {
 
     const activity = await this.prisma.activity.create({ data: parsedData });
 
+    // 4. Generate Share Card & FB Scrape
     try {
       const shareImageUrl = await this.shareCardService.generateShareImage({
         distance: activity.distance,
@@ -110,39 +124,35 @@ export class ActivitiesService {
         data: { shareImageUrl },
       });
 
-      // 🔥 Trigger Facebook Scrape immediately
       this.triggerFacebookScrape(updatedActivity.id);
 
       return updatedActivity;
     } catch (err) {
-      this.logger.error(`SHARE_CARD_CREATION_FAILED: ${activity.id}`, err);
+      this.logger.error(`SHARE_CARD_FAILED for ${activity.id}`, err);
       return activity;
     }
   }
 
   private async triggerFacebookScrape(activityId: string) {
     const shareUrl = `${process.env.BACKEND_URL}/api/share/activity/${activityId}`;
-
     const fbAppId = '1592938017610534';
-    // 🚀 Use the environment variable instead of hardcoding
     const fbSecret = process.env.FB_APP_SECRET;
 
     if (!fbSecret) {
-      this.logger.error(
-        'FB_APP_SECRET is not defined in environment variables',
-      );
+      this.logger.error('FB_APP_SECRET missing in ENV');
       return;
     }
 
     try {
-      const params = new URLSearchParams();
-      params.append('id', shareUrl);
-      params.append('scrape', 'true');
-      params.append('access_token', `${fbAppId}|${fbSecret}`);
+      const params = new URLSearchParams({
+        id: shareUrl,
+        scrape: 'true',
+        access_token: `${fbAppId}|${fbSecret}`,
+      });
 
-      const endpoint = `https://graph.facebook.com/v20.0/?${params.toString()}`;
-
-      await axios.post(endpoint);
+      await axios.post(
+        `https://graph.facebook.com/v20.0/?${params.toString()}`,
+      );
       this.logger.log(`✅ FB_SCRAPE_SUCCESS: ${activityId}`);
     } catch (e: any) {
       this.logger.error(
