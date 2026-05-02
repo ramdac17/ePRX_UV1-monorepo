@@ -107,7 +107,6 @@ export class ActivitiesService {
     // 3. Data Normalization (Added potential missing fields: type, createdAt)
     const parsedData = {
       title: data.title || 'NEW_SESSION',
-      type: data.type || 'RUN', // Ensure your schema has this if you're tracking activity type
       distance: dist,
       duration: dur,
       pace: finalPace?.toString() || '0:00',
