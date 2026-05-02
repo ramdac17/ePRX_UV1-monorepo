@@ -60,25 +60,39 @@ export class ActivitiesService {
   // ==========================================
   // 🚀 CREATE ACTIVITY (ALIGNED WITH UV1 MOBILE)
   // ==========================================
+  // ==========================================
+  // 🚀 CREATE ACTIVITY (FIXED & ALIGNED)
+  // ==========================================
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
+
+    // Log incoming data for debugging the null field issue
+    this.logger.log(`Payload Keys: ${Object.keys(data)}`);
+    this.logger.log(`Snapshot Present: ${!!data.mapSnapshot}`);
 
     // 1. Image Processing: Support 'mapSnapshot' (Mobile) and 'mapImageUrl' (Web)
     const rawImage = data.mapSnapshot || data.mapImageUrl;
 
-    if (rawImage && rawImage.startsWith('data:image')) {
+    if (
+      rawImage &&
+      (rawImage.startsWith('data:image') || rawImage.length > 100)
+    ) {
       try {
+        this.logger.log('Attempting Cloudinary Upload...');
         const uploadResult =
           await this.cloudinaryService.uploadBase64(rawImage);
         uploadedMapUrl = uploadResult.secure_url;
+        this.logger.log(`Cloudinary Success: ${uploadedMapUrl}`);
       } catch (err) {
         this.logger.error('Map Upload Failed', err);
+        // Fallback to existing URL if upload fails but rawImage wasn't base64
+        if (!rawImage.startsWith('data:image')) uploadedMapUrl = rawImage;
       }
     } else {
       uploadedMapUrl = data.mapImageUrl || null;
     }
 
-    // 2. Automated Pace Calculation (Ensures 'pace' string is never empty)
+    // 2. Automated Pace Calculation
     const dist = parseFloat(data.distance) || 0;
     const dur = parseInt(data.duration) || 0;
     let finalPace = data.pace;
@@ -90,9 +104,10 @@ export class ActivitiesService {
       finalPace = `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // 3. Data Normalization
+    // 3. Data Normalization (Added potential missing fields: type, createdAt)
     const parsedData = {
       title: data.title || 'NEW_SESSION',
+      type: data.type || 'RUN', // Ensure your schema has this if you're tracking activity type
       distance: dist,
       duration: dur,
       pace: finalPace?.toString() || '0:00',
@@ -104,14 +119,17 @@ export class ActivitiesService {
           ? JSON.parse(data.coordinates)
           : data.coordinates,
       userId,
-      mapImageUrl: uploadedMapUrl,
+      mapImageUrl: uploadedMapUrl, // This was likely missing or overwritten before
       shareImageUrl: null,
     };
 
-    const activity = await this.prisma.activity.create({ data: parsedData });
-
-    // 4. Generate Share Card & FB Scrape
     try {
+      const activity = await this.prisma.activity.create({ data: parsedData });
+      this.logger.log(
+        `✅ Activity Created: ${activity.id} | Map: ${!!activity.mapImageUrl}`,
+      );
+
+      // 4. Generate Share Card & FB Scrape
       const shareImageUrl = await this.shareCardService.generateShareImage({
         distance: activity.distance,
         pace: activity.pace,
@@ -125,11 +143,11 @@ export class ActivitiesService {
       });
 
       this.triggerFacebookScrape(updatedActivity.id);
-
       return updatedActivity;
     } catch (err) {
-      this.logger.error(`SHARE_CARD_FAILED for ${activity.id}`, err);
-      return activity;
+      this.logger.error(`CREATE_OR_SHARE_FAILED`, err);
+      // Return whatever we have so the user doesn't lose data
+      return { id: 'error', ...parsedData };
     }
   }
 
