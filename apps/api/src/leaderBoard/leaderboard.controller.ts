@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { LeaderboardService } from './leaderboard.service';
+import { LeaderboardService } from './../leaderboard/leaderboard.service';
 // Adjust these paths to match your existing auth guard file locations
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 

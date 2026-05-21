@@ -13,7 +13,7 @@ import { EventsModule } from './events/events.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { HealthController } from './health.controller';
 import { ShareCardModule } from './share-card/share-card.module';
-import { LeaderboardModule } from './leaderBoard/leaderboard.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
