@@ -13,6 +13,7 @@ import { EventsModule } from './events/events.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { HealthController } from './health.controller';
 import { ShareCardModule } from './share-card/share-card.module';
+import { LeaderboardModule } from './leaderBoard/leaderboard.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ShareCardModule } from './share-card/share-card.module';
     ArticlesModule,
     ActivitiesModule,
     ShareCardModule,
+    LeaderboardModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
