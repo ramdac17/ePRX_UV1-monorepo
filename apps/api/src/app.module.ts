@@ -14,7 +14,6 @@ import { ActivitiesModule } from './activities/activities.module';
 import { HealthController } from './health.controller';
 import { ShareCardModule } from './share-card/share-card.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module'; // added this import for the new LeaderboardModule
-import { MetricsController } from './metrics/metrics.controller'; // Import the new MetricsController
 
 @Module({
   imports: [
@@ -43,7 +42,7 @@ import { MetricsController } from './metrics/metrics.controller'; // Import the 
     ShareCardModule,
     LeaderboardModule,
   ],
-  controllers: [AppController, HealthController, MetricsController],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule {}
