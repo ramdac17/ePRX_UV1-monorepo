@@ -20,7 +20,7 @@ export class HealthController {
       if (e instanceof Error) {
         console.log(e.message);
       } else {
-        console.log('An unknown error occurred');
+        console.log('An unknown error occurred. Please try again');
       }
     }
   }
