@@ -28,19 +28,26 @@ model User {
 }
 
 model Activity {
-  id          String   @id @default(uuid())
-  title       String
-  distance    Float
-  duration    Int      @default(0)
-  pace        String
-  elevation   Float    @default(0)
-  coordinates Json?
-  userId      String
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
+  id            String   @id @default(uuid())
+  title         String   @default("NEW_SESSION")
+  distance      Float    @default(0.0)
+  duration      Int      @default(0)
+  pace          String   @default("0:00")
+  elevation     Float    @default(0.0)
+  type          String   @default("RUN")
+  coordinates   Json?
   mapImageUrl   String?
   shareImageUrl String?
+  isFlagged     Boolean  @default(false)      
+  
+  // 🎯 FIX: Remove @map("date") so it matches your actual database column perfectly!
+  createdAt     DateTime @default(now()) 
+  updatedAt     DateTime @default(now()) @updatedAt   
+
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Article {

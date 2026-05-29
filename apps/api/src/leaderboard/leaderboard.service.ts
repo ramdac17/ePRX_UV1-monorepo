@@ -48,4 +48,20 @@ export class LeaderboardService {
     // Filter out any null configurations or missing records cleanly
     return enrichedStandings.filter((standing) => standing !== null);
   }
+
+  async getLeaderboard(type: string = 'RUN') {
+    return this.prisma.activity.findMany({
+      where: {
+        type: type.toUpperCase(),
+        isFlagged: false, // 🛡️ Instantly filters out vehicles and glitchy data streams
+      },
+      orderBy: {
+        distance: 'desc', // Or order by elevation gain if building a Trail specific leaderboard!
+      },
+      take: 50,
+      include: {
+        user: true,
+      },
+    });
+  }
 }

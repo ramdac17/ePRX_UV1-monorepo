@@ -4,6 +4,18 @@ import { ShareCardService } from '../share-card/share-card.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import axios from 'axios';
 
+interface ActivityRules {
+  maxSpeedKmh: number;
+  label: string;
+}
+
+// 🛡️ Anti-Cheat Validation Rules Matrix for ePRX UV1 Disciplines
+const ACTIVITY_MATRIX: Record<string, ActivityRules> = {
+  RUN: { maxSpeedKmh: 32, label: 'Road Running' }, // ~1:52 min/km pace limit
+  TRAIL: { maxSpeedKmh: 25, label: 'Trail Running' }, // Accounts for heavy technical vertical speeds
+  CYCLING: { maxSpeedKmh: 65, label: 'Cycling' }, // Downhill sprint allowance; anything higher assumes motorized transit
+};
+
 @Injectable()
 export class ActivitiesService {
   private readonly logger = new Logger(ActivitiesService.name);
@@ -57,12 +69,9 @@ export class ActivitiesService {
     return activity;
   }
 
-  // ==========================================
-  // 🚀 CREATE ACTIVITY (ALIGNED WITH UV1 MOBILE)
-  // ==========================================
-  // ==========================================
-  // 🚀 CREATE ACTIVITY (FIXED & ALIGNED)
-  // ==========================================
+  // ===================================================
+  // 🚀 CREATE ACTIVITY (WITH DYNAMIC ANTI-CHEAT LOGIC)
+  // ===================================================
   async createActivity(userId: string, data: any) {
     let uploadedMapUrl = null;
 
@@ -92,40 +101,57 @@ export class ActivitiesService {
       uploadedMapUrl = data.mapImageUrl || null;
     }
 
-    // 2. Automated Pace Calculation
+    // 2. Telemetry Verification & Automated Pace Calculation
     const dist = parseFloat(data.distance) || 0;
     const dur = parseInt(data.duration) || 0;
+    const activityType = (data.type || 'RUN').toUpperCase();
     let finalPace = data.pace;
+    let isFlagged = false;
 
-    if (!finalPace && dist > 0 && dur > 0) {
-      const paceMinPerKm = dur / 60 / dist;
-      const mins = Math.floor(paceMinPerKm);
-      const secs = Math.round((paceMinPerKm - mins) * 60);
-      finalPace = `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (dist > 0 && dur > 0) {
+      // Calculate pace string if missing
+      if (!finalPace) {
+        const paceMinPerKm = dur / 60 / dist;
+        const mins = Math.floor(paceMinPerKm);
+        const secs = Math.round((paceMinPerKm - mins) * 60);
+        finalPace = `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      // 🛡️ ANTI-CHEAT CHECK: Compare velocity curves against human biomechanical realities
+      const speedKmh = dist / (dur / 3600);
+      const rules = ACTIVITY_MATRIX[activityType] || ACTIVITY_MATRIX.RUN;
+
+      if (speedKmh > rules.maxSpeedKmh) {
+        this.logger.warn(
+          `⚠️ [ANTI-CHEAT] Flagged potential vehicle usage for ${rules.label} by User ${userId}. Speed calculated: ${speedKmh.toFixed(1)} km/h. Max permitted threshold: ${rules.maxSpeedKmh} km/h.`,
+        );
+        isFlagged = true;
+      }
     }
 
-    // 3. Data Normalization (Added potential missing fields: type, createdAt)
+    // 3. Data Normalization & Structural Mapping
     const parsedData = {
-      title: data.title || 'NEW_SESSION',
+      title: data.title || `NEW_${activityType}_SESSION`,
       distance: dist,
       duration: dur,
+      type: activityType,
+      isFlagged: isFlagged, // 🔐 Automatically isolates drivers out of leaderboard sets
       pace: finalPace?.toString() || '0:00',
       elevation: parseFloat(data.elevation) || 0,
-      // Map 'path' (Mobile) or 'coordinates' (Existing) safely
       coordinates: Array.isArray(data.path)
         ? data.path
         : typeof data.coordinates === 'string'
           ? JSON.parse(data.coordinates)
           : data.coordinates,
       userId,
-      mapImageUrl: uploadedMapUrl, // This was likely missing or overwritten before
+      mapImageUrl: uploadedMapUrl,
       shareImageUrl: null,
     };
 
     try {
       const activity = await this.prisma.activity.create({ data: parsedData });
       this.logger.log(
-        `✅ Activity Created: ${activity.id} | Map: ${!!activity.mapImageUrl}`,
+        `✅ Activity Created: ${activity.id} | Type: ${activity.type} | Flagged: ${activity.isFlagged}`,
       );
 
       // 4. Generate Share Card & FB Scrape
@@ -145,7 +171,7 @@ export class ActivitiesService {
       return updatedActivity;
     } catch (err) {
       this.logger.error(`CREATE_OR_SHARE_FAILED`, err);
-      // Return whatever we have so the user doesn't lose data
+      // Return normalized raw fallback to ensure user doesn't lose entry session record on crash
       return { id: 'error', ...parsedData };
     }
   }
