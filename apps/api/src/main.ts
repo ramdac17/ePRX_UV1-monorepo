@@ -42,29 +42,36 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow if no origin (server-to-server) or in development
-      if (!origin || !isProduction) return callback(null, true);
+      if (!origin || !isProduction) {
+        return callback(null, true);
+      }
+
+      // Clean up trailing slashes or spaces just in case
+      const sanitizedOrigin = origin.trim();
 
       const isAllowed = baseOrigins.some((allowed) =>
-        origin.startsWith(allowed),
+        sanitizedOrigin.startsWith(allowed.trim()),
       );
-      const isRailway = origin.endsWith('.railway.app');
-      const isVercel = origin.endsWith('.vercel.app');
+      const isRailway = sanitizedOrigin.endsWith('.railway.app');
+      const isVercel = sanitizedOrigin.endsWith('.vercel.app');
       const isLocalNetwork =
-        origin.includes('192.168.') || origin.includes('10.0.');
+        sanitizedOrigin.includes('192.168.') ||
+        sanitizedOrigin.includes('10.0.');
 
       if (isAllowed || isRailway || isVercel || isLocalNetwork) {
         callback(null, true);
       } else {
-        logger.error(`🚫 CORS_REJECTED_ORIGIN: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        logger.error(`🚫 CORS_REJECTED_ORIGIN: ${sanitizedOrigin}`);
+        // 🟢 Fix: Pass false instead of throwing a raw Error object.
+        // This stops the 500 crash and lets Express return a clean CORS rejection.
+        callback(null, false);
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
     preflightContinue: false,
-    optionsSuccessStatus: 204,
+    optionsSuccessStatus: 204, // Preflight requests should return 204 on success
   });
 
   // Body Parsing (matching ePRX UV1 telemetry data requirements)
