@@ -28,7 +28,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module'; // added t
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
-      exclude: ['/api/(.*)'],
+      exclude: ['/api/:splat*'],
     }),
 
     // Core modules (ORDER MATTERS FOR DI)
